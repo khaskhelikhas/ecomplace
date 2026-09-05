@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../store/authStore'
-import { getProduct, createAlert } from '../lib/data'
+import { getProduct, createAlert, addSourcing } from '../lib/data'
+import { withUserAffiliate, hasUserAffiliate } from '../lib/userAffiliate'
 import PriceChart from '../components/PriceChart'
 import SignalBadge from '../components/SignalBadge'
+import ProfitCalc from '../components/ProfitCalc'
 
 export default function ProductDetail() {
   const { id } = useParams()
@@ -13,6 +15,7 @@ export default function ProductDetail() {
   const [loading, setLoading] = useState(true)
   const [af, setAf] = useState({ alertType: 'price', targetPrice: '', targetMargin: '' })
   const [msg, setMsg] = useState(null)
+  const [sourced, setSourced] = useState(false)
 
   useEffect(() => {
     ;(async () => {
@@ -56,6 +59,24 @@ export default function ProductDetail() {
   if (!p) return <div className="max-w-5xl mx-auto px-4 py-16 text-center text-ink-500">Deal not found.</div>
 
   const disc = p.marginPercentage || 0
+  const outUrl = withUserAffiliate(p.sourceUrl, p.source, user || {})
+
+  const addToSourcing = async () => {
+    if (!user?.id) return setMsg({ t: 'err', m: 'Please sign in again.' })
+    try {
+      await addSourcing(user.id, {
+        productId: id,
+        name: p.name,
+        source: p.source,
+        sourceUrl: p.sourceUrl,
+        dealPrice: p.currentPrice,
+      })
+      setSourced(true)
+    } catch (e) {
+      console.error(e)
+      setMsg({ t: 'err', m: 'Could not add to sourcing list.' })
+    }
+  }
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-6 sm:py-8">
@@ -118,19 +139,34 @@ export default function ProductDetail() {
           )}
 
           <div className="mt-6">
+            <ProfitCalc dealPrice={p.currentPrice} suggestedSell={p.previousPrice} />
+          </div>
+
+          <div className="mt-6">
             <h2 className="font-bold mb-3">Price history</h2>
             <PriceChart history={p.priceHistory} />
           </div>
 
-          {p.sourceUrl && (
-            <a
-              href={p.sourceUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="btn-primary w-full mt-6"
-            >
-              View deal at {p.source?.replace(/-/g, ' ')} ↗
-            </a>
+          <div className="mt-6 flex flex-col sm:flex-row gap-3">
+            {p.sourceUrl && (
+              <a
+                href={outUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="btn-primary flex-1"
+              >
+                View deal at {p.source?.replace(/-/g, ' ')} ↗
+              </a>
+            )}
+            <button onClick={addToSourcing} disabled={sourced} className="btn-ghost flex-1">
+              {sourced ? '✓ In sourcing list' : '+ Add to sourcing'}
+            </button>
+          </div>
+
+          {hasUserAffiliate(user || {}) && (
+            <p className="text-[11px] text-emerald-600 mt-2">
+              This link carries your affiliate id — purchases through it pay you.
+            </p>
           )}
         </div>
 

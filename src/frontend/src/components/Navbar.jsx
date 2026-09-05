@@ -33,6 +33,9 @@ export default function Navbar() {
             <NavLink to="/products" className={link}>
               Deals
             </NavLink>
+            <NavLink to="/sourcing" className={link}>
+              Sourcing
+            </NavLink>
             <NavLink to="/alerts" className={link}>
               Alerts
             </NavLink>
@@ -62,16 +65,25 @@ export default function Navbar() {
                     </span>
                   </div>
                   <div className="sm:hidden border-b border-slate-100 py-1">
-                    <NavLink to="/" end className="block px-4 py-2 text-sm hover:bg-slate-50" onClick={() => setOpen(false)}>
-                      Dashboard
-                    </NavLink>
-                    <NavLink to="/products" className="block px-4 py-2 text-sm hover:bg-slate-50" onClick={() => setOpen(false)}>
-                      Deals
-                    </NavLink>
-                    <NavLink to="/alerts" className="block px-4 py-2 text-sm hover:bg-slate-50" onClick={() => setOpen(false)}>
-                      Alerts
-                    </NavLink>
+                    {['/', '/products', '/sourcing', '/alerts'].map((to, i) => (
+                      <NavLink
+                        key={to}
+                        to={to}
+                        end={to === '/'}
+                        className="block px-4 py-2 text-sm hover:bg-slate-50"
+                        onClick={() => setOpen(false)}
+                      >
+                        {['Dashboard', 'Deals', 'Sourcing', 'Alerts'][i]}
+                      </NavLink>
+                    ))}
                   </div>
+                  <NavLink
+                    to="/settings"
+                    className="block px-4 py-2.5 text-sm hover:bg-slate-50"
+                    onClick={() => setOpen(false)}
+                  >
+                    Settings
+                  </NavLink>
                   <button
                     onClick={handleLogout}
                     className="w-full text-left px-4 py-2.5 text-sm text-rose-600 hover:bg-rose-50"

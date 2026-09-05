@@ -4,6 +4,8 @@ import {
   getDoc,
   getDocs,
   addDoc,
+  setDoc,
+  updateDoc,
   deleteDoc,
   query,
   where,
@@ -127,6 +129,45 @@ export async function createAlert({ userId, productId, alertType, targetPrice, t
 
 export async function deleteAlert(id) {
   return deleteDoc(doc(db, 'alerts', id))
+}
+
+/* ---------------- user profile ---------------- */
+
+export async function getUserProfile(uid) {
+  if (!uid) return null
+  const snap = await getDoc(doc(db, 'users', uid))
+  return snap.exists() ? snap.data() : null
+}
+
+export async function saveUserProfile(uid, data) {
+  return setDoc(doc(db, 'users', uid), { ...data, updatedAt: serverTimestamp() }, { merge: true })
+}
+
+/* ---------------- sourcing list ---------------- */
+
+export async function getSourcing(uid) {
+  if (!uid) return []
+  const snap = await getDocs(
+    query(collection(db, 'users', uid, 'sourcing'), orderBy('addedAt', 'desc'))
+  )
+  return snap.docs.map((d) => ({ id: d.id, ...d.data() }))
+}
+
+export async function addSourcing(uid, item) {
+  return addDoc(collection(db, 'users', uid, 'sourcing'), {
+    ...item,
+    qty: item.qty ?? 1,
+    sellPrice: item.sellPrice ?? null,
+    addedAt: serverTimestamp(),
+  })
+}
+
+export async function updateSourcing(uid, id, data) {
+  return updateDoc(doc(db, 'users', uid, 'sourcing', id), data)
+}
+
+export async function removeSourcing(uid, id) {
+  return deleteDoc(doc(db, 'users', uid, 'sourcing', id))
 }
 
 /**

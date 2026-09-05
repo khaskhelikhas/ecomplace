@@ -4,6 +4,8 @@ import Dashboard from './pages/Dashboard'
 import ProductList from './pages/ProductList'
 import ProductDetail from './pages/ProductDetail'
 import Alerts from './pages/Alerts'
+import Sourcing from './pages/Sourcing'
+import Settings from './pages/Settings'
 import Login from './pages/Login'
 import Register from './pages/Register'
 import Navbar from './components/Navbar'
@@ -35,6 +37,8 @@ function App() {
             <Route path="/products" element={<ProductList />} />
             <Route path="/products/:id" element={<ProductDetail />} />
             <Route path="/alerts" element={<Alerts />} />
+            <Route path="/sourcing" element={<Sourcing />} />
+            <Route path="/settings" element={<Settings />} />
           </>
         )}
 

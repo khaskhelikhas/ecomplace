@@ -14,7 +14,7 @@ import { auth, db } from '../lib/firebase'
  * A matching profile document is kept in Firestore at users/{uid}.
  */
 const useAuthStore = create((set, get) => ({
-  user: null,       // { id, email, fullName, subscriptionPlan }
+  user: null, // { id, email, fullName, subscriptionPlan, ...profile }
   loading: true,
   error: null,
 
@@ -40,10 +40,27 @@ const useAuthStore = create((set, get) => ({
           email: fbUser.email,
           fullName: profile.fullName || fbUser.displayName || fbUser.email,
           subscriptionPlan: profile.subscriptionPlan || 'free',
+          affiliateAmazonTag: profile.affiliateAmazonTag || '',
+          affiliateEbayCampaign: profile.affiliateEbayCampaign || '',
+          affiliateGenericQs: profile.affiliateGenericQs || '',
+          defaultFeePct: profile.defaultFeePct ?? 15,
+          defaultShipping: profile.defaultShipping ?? 0,
         },
         loading: false,
       })
     })
+  },
+
+  // Merge fields into the user's Firestore profile and local state.
+  updateProfile: async (patch) => {
+    const u = get().user
+    if (!u?.id) throw new Error('Not signed in')
+    await setDoc(
+      doc(db, 'users', u.id),
+      { ...patch, updatedAt: serverTimestamp() },
+      { merge: true }
+    )
+    set({ user: { ...u, ...patch } })
   },
 
   login: async (email, password) => {

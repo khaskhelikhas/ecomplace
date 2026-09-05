@@ -13,6 +13,11 @@ service cloud.firestore {
       allow read: if signedIn() && request.auth.uid == userId;
       allow create, update: if signedIn() && request.auth.uid == userId;
       allow delete: if false;
+
+      // Personal sourcing / watchlist entries
+      match /sourcing/{itemId} {
+        allow read, create, update, delete: if signedIn() && request.auth.uid == userId;
+      }
     }
 
     // Products are read-only for any signed-in user.
