@@ -16,6 +16,7 @@ import { initializeApp, cert, applicationDefault } from 'firebase-admin/app';
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 import { generateMockProducts } from '../services/mockData.js';
 import { fetchDealNews } from '../services/dealFeeds.js';
+import { computeSignals } from '../services/signals.js';
 
 const PROJECT_ID = process.env.FIREBASE_PROJECT_ID || 'ecomplace-app';
 
@@ -85,8 +86,16 @@ async function main() {
   for (const p of raw) {
     const id = docId(p);
     const ref = db.collection('products').doc(id);
-    const prev = await ref.get();
-    const previousPrice = prev.exists ? prev.data().currentPrice ?? p.current_price : p.current_price;
+    const current = p.current_price ?? 0;
+
+    // Recent price points (newest first) from earlier refreshes.
+    const histSnap = await ref
+      .collection('priceHistory')
+      .orderBy('recordedAt', 'desc')
+      .limit(6)
+      .get();
+    const pastPrices = histSnap.docs.map((d) => d.data().price);
+    const lastSeen = pastPrices[0] ?? current;
 
     const data = {
       name: p.name,
@@ -95,9 +104,11 @@ async function main() {
       sourceUrl: p.source_url,
       asin: p.asin || null,
       sku: p.sku || null,
-      currentPrice: p.current_price ?? 0,
-      previousPrice,
-      priceChange: Number(((p.current_price ?? 0) - previousPrice).toFixed(2)),
+      currentPrice: current,
+      // list / was-price from the feed (used for discount + flip margin)
+      previousPrice: p.previous_price ?? current,
+      // change since the previous refresh
+      priceChange: Number((current - lastSeen).toFixed(2)),
       rating: p.rating ?? 0,
       reviewsCount: p.reviews_count ?? 0,
       bestSellersRank: p.best_sellers_rank ?? 9999,
@@ -109,6 +120,8 @@ async function main() {
       expiresAt: p.expires_at || null,
       fetchedAt: now,
     };
+
+    Object.assign(data, computeSignals(data, [current, ...pastPrices]));
 
     await ref.set(data, { merge: true });
     await ref.collection('priceHistory').add({

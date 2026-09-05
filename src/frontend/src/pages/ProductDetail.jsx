@@ -112,6 +112,58 @@ export default function ProductDetail() {
             </div>
           </div>
 
+          {product.recommendation && (
+            <div className="border-t pt-6 mb-2">
+              <h2 className="text-xl font-bold mb-3">Deal Signals</h2>
+              <div
+                className={`inline-block px-3 py-1 rounded font-bold text-sm mb-3 ${
+                  product.recommendation === 'BUY NOW'
+                    ? 'bg-green-100 text-green-800'
+                    : product.recommendation === 'WATCH'
+                      ? 'bg-amber-100 text-amber-800'
+                      : 'bg-gray-100 text-gray-600'
+                }`}
+              >
+                {product.recommendation}
+              </div>
+              <p className="text-sm text-gray-700 mb-4">{product.reason}</p>
+
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                <div>
+                  <p className="text-gray-500">Price trend</p>
+                  <p className="font-semibold capitalize">
+                    {product.trend}
+                    {product.slopePct ? ` (${product.slopePct}%)` : ''}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-gray-500">May drop further</p>
+                  <p className="font-semibold">{product.dropChance}%</p>
+                </div>
+                <div>
+                  <p className="text-gray-500">Deal ends in</p>
+                  <p className="font-semibold">
+                    {product.expiresInHours != null
+                      ? `${product.expiresInHours} h`
+                      : 'no end date'}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-gray-500">Est. flip margin</p>
+                  <p className="font-semibold text-green-700">
+                    {product.flipMargin
+                      ? `~$${Math.round(product.flipMargin)} (${product.flipMarginPct}%)`
+                      : '-'}
+                  </p>
+                </div>
+              </div>
+              <p className="text-xs text-gray-400 mt-4">
+                Heuristic estimates from limited price data - a nudge, not
+                financial advice or a guarantee.
+              </p>
+            </div>
+          )}
+
           <div className="border-t pt-6">
             <h2 className="text-xl font-bold mb-4">Price History</h2>
             {product.priceHistory && product.priceHistory.length > 0 ? (

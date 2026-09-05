@@ -31,7 +31,7 @@ const num = (v) => (typeof v === 'number' ? v : Number(v) || 0)
  */
 export async function getProducts(filters = {}) {
   const snap = await getDocs(
-    query(collection(db, 'products'), orderBy('marginPercentage', 'desc'), fbLimit(500))
+    query(collection(db, 'products'), orderBy('dealScore', 'desc'), fbLimit(500))
   )
 
   let rows = snap.docs.map((d) => ({ id: d.id, ...d.data() }))

@@ -9,6 +9,7 @@ export default function Dashboard() {
     averageMargin: 0,
     topSeller: null,
     bestMargin: null,
+    buySignals: [],
   })
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -33,11 +34,17 @@ export default function Dashboard() {
           (a, b) => (a.bestSellersRank || 9999) - (b.bestSellersRank || 9999)
         )[0]
 
+        const buySignals = products
+          .filter((p) => p.recommendation === 'BUY NOW')
+          .sort((a, b) => (b.dealScore || 0) - (a.dealScore || 0))
+          .slice(0, 5)
+
         setStats({
           totalProducts: products.length,
           averageMargin: (totalMargin / products.length).toFixed(2),
           topSeller,
           bestMargin: bestProduct,
+          buySignals,
         })
       }
       setLoading(false)
@@ -82,6 +89,39 @@ export default function Dashboard() {
           <p className="text-gray-600 text-sm">Products Tracked</p>
           <p className="text-3xl font-bold mt-2">{stats.totalProducts}</p>
         </div>
+      </div>
+
+      <div className="bg-white p-6 rounded-lg shadow mb-8">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-xl font-bold">🎯 Top Buy Signals</h2>
+          <span className="text-xs text-gray-400">
+            auto-updated every 20 min · heuristic, not advice
+          </span>
+        </div>
+        {stats.buySignals.length === 0 ? (
+          <p className="text-gray-500 text-sm">
+            No strong buy signals right now — check the Products page for deals to watch.
+          </p>
+        ) : (
+          <div className="space-y-3">
+            {stats.buySignals.map((p) => (
+              <a
+                key={p.id}
+                href={`/products/${p.id}`}
+                className="flex items-center justify-between border rounded-md p-3 hover:bg-gray-50"
+              >
+                <div className="min-w-0 pr-4">
+                  <p className="font-medium truncate">{p.name}</p>
+                  <p className="text-xs text-gray-500">{p.reason}</p>
+                </div>
+                <div className="text-right shrink-0">
+                  <p className="font-bold">${p.currentPrice}</p>
+                  <p className="text-xs text-green-700">~${Math.round(p.flipMargin)} margin</p>
+                </div>
+              </a>
+            ))}
+          </div>
+        )}
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">

@@ -42,6 +42,13 @@ export default function ProductList() {
   const prettySource = (s) =>
     s.replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
 
+  const signalStyle = (rec) =>
+    rec === 'BUY NOW'
+      ? 'bg-green-100 text-green-800'
+      : rec === 'WATCH'
+        ? 'bg-amber-100 text-amber-800'
+        : 'bg-gray-100 text-gray-600'
+
   const handleFilterChange = (e) => {
     const { name, value } = e.target
     setFilters({ ...filters, [name]: value })
@@ -144,7 +151,8 @@ export default function ProductList() {
                 <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Source</th>
                 <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Price</th>
                 <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Discount</th>
-                <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Rating</th>
+                <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Signal</th>
+                <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Est. margin</th>
                 <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Action</th>
               </tr>
             </thead>
@@ -169,8 +177,22 @@ export default function ProductList() {
                       {product.marginPercentage}%
                     </span>
                   </td>
-                  <td className="px-6 py-4 text-sm">
-                    {product.rating ? `⭐ ${product.rating}` : 'N/A'}
+                  <td className="px-6 py-4 text-sm whitespace-nowrap">
+                    <span
+                      className={`px-2 py-1 rounded text-xs font-bold ${signalStyle(
+                        product.recommendation
+                      )}`}
+                    >
+                      {product.recommendation || 'WATCH'}
+                    </span>
+                    {product.dropChance != null && (
+                      <span className="block text-xs text-gray-400 mt-1">
+                        {product.dropChance}% may drop
+                      </span>
+                    )}
+                  </td>
+                  <td className="px-6 py-4 text-sm font-medium text-green-700">
+                    {product.flipMargin ? `~$${Math.round(product.flipMargin)}` : '-'}
                   </td>
                   <td className="px-6 py-4 text-sm">
                     <Link to={`/products/${product.id}`} className="text-primary hover:underline">
