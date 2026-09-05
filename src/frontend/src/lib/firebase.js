@@ -6,12 +6,12 @@ import { getFirestore } from 'firebase/firestore'
 // enforced by Authentication and Firestore security rules, not by hiding
 // this config.
 const firebaseConfig = {
-  apiKey: 'AIzaSyCyMOO6-R-y41UN9nxx_1SZhr5XitidZRc',
-  authDomain: 'ecomplace-app.firebaseapp.com',
-  projectId: 'ecomplace-app',
-  storageBucket: 'ecomplace-app.firebasestorage.app',
-  messagingSenderId: '475397419538',
-  appId: '1:475397419538:web:aaf8570cdbb06eabaa9ecb',
+  apiKey: 'AIzaSyCEqStZAkxvhDCc7IZgIaB20k75EBwUEP0',
+  authDomain: 'ecomplace-app-4db34.firebaseapp.com',
+  projectId: 'ecomplace-app-4db34',
+  storageBucket: 'ecomplace-app-4db34.firebasestorage.app',
+  messagingSenderId: '77163836828',
+  appId: '1:77163836828:web:3ef990765917788ce54459',
 }
 
 const app = initializeApp(firebaseConfig)

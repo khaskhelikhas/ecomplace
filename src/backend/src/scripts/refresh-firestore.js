@@ -15,6 +15,7 @@
 import { initializeApp, cert, applicationDefault } from 'firebase-admin/app';
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 import { generateMockProducts } from '../services/mockData.js';
+import { fetchDealNews } from '../services/dealFeeds.js';
 
 const PROJECT_ID = process.env.FIREBASE_PROJECT_ID || 'ecomplace-app';
 
@@ -61,11 +62,22 @@ async function main() {
   initAdmin();
   const db = getFirestore();
 
-  if (!hasApiKeys()) {
-    console.log('No product API keys set - generating demo data');
+  // Real, free deal data from the DealNews public RSS feed. Falls back to
+  // generated demo data only if the feed is unreachable.
+  let raw = [];
+  try {
+    raw = await fetchDealNews();
+    console.log(`Fetched ${raw.length} live deals from DealNews`);
+  } catch (err) {
+    console.warn(`DealNews feed failed (${err.message}) - using demo data`);
   }
-  // (Real API fetching would go here when keys are configured.)
-  const raw = generateMockProducts(40);
+  if (raw.length === 0) {
+    raw = generateMockProducts(40);
+    console.log(`Using ${raw.length} demo products`);
+  }
+  if (!hasApiKeys()) {
+    // (Keepa / Walmart / AliExpress calls would be merged in here when keys exist.)
+  }
 
   const now = FieldValue.serverTimestamp();
   let written = 0;
@@ -91,8 +103,10 @@ async function main() {
       bestSellersRank: p.best_sellers_rank ?? 9999,
       fbaFee: p.fba_fee ?? 0,
       shippingCost: p.shipping_cost ?? 0,
-      marginPercentage: withMargin(p),
+      // Feed data already carries a real discount %; otherwise estimate.
+      marginPercentage: p.margin_percentage ? Number(p.margin_percentage) : withMargin(p),
       imageUrl: p.image_url || null,
+      expiresAt: p.expires_at || null,
       fetchedAt: now,
     };
 
