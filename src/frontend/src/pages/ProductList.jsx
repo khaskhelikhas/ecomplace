@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
-import { apiUrl } from '../lib/api'
+import { getProducts, buildProductsCsv } from '../lib/data'
 
 export default function ProductList() {
   const [products, setProducts] = useState([])
@@ -9,29 +9,24 @@ export default function ProductList() {
     search: '',
     source: 'all',
     minMargin: 0,
-    maxMargin: 100
+    maxMargin: 100,
   })
 
   useEffect(() => {
     fetchProducts()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filters])
 
   const fetchProducts = async () => {
     try {
       setLoading(true)
-      const params = new URLSearchParams({ limit: '100' })
-
-      if (filters.search.trim()) params.set('search', filters.search.trim())
-      if (filters.source !== 'all') params.set('source', filters.source)
-      if (Number(filters.minMargin) > 0) params.set('minMargin', filters.minMargin)
-      if (Number(filters.maxMargin) < 100) params.set('maxMargin', filters.maxMargin)
-
-      const response = await fetch(apiUrl(`/api/products?${params.toString()}`))
-      const data = await response.json()
-
-      if (data.success) {
-        setProducts(data.data)
-      }
+      const rows = await getProducts({
+        search: filters.search.trim() || undefined,
+        source: filters.source,
+        minMargin: Number(filters.minMargin) > 0 ? Number(filters.minMargin) : undefined,
+        maxMargin: Number(filters.maxMargin) < 100 ? Number(filters.maxMargin) : undefined,
+      })
+      setProducts(rows)
       setLoading(false)
     } catch (error) {
       console.error('Error fetching products:', error)
@@ -41,21 +36,19 @@ export default function ProductList() {
 
   const handleFilterChange = (e) => {
     const { name, value } = e.target
-    setFilters({
-      ...filters,
-      [name]: value
-    })
+    setFilters({ ...filters, [name]: value })
   }
 
   const handleExportCSV = async () => {
     try {
-      const response = await fetch(apiUrl('/api/products/export/csv'))
-      const blob = await response.blob()
+      const csv = await buildProductsCsv()
+      const blob = new Blob([csv], { type: 'text/csv' })
       const url = window.URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
       a.download = 'products.csv'
       a.click()
+      window.URL.revokeObjectURL(url)
     } catch (error) {
       console.error('Error exporting CSV:', error)
     }
@@ -73,7 +66,6 @@ export default function ProductList() {
         </button>
       </div>
 
-      {/* Filters */}
       <div className="bg-white p-6 rounded-lg shadow mb-8">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <div>
@@ -131,11 +123,10 @@ export default function ProductList() {
         </div>
       </div>
 
-      {/* Products Table */}
       {loading ? (
         <div className="text-center py-8">Loading...</div>
       ) : (
-        <div className="bg-white rounded-lg shadow overflow-hidden">
+        <div className="bg-white rounded-lg shadow overflow-x-auto">
           <table className="w-full">
             <thead className="bg-gray-100 border-b">
               <tr>
@@ -148,28 +139,31 @@ export default function ProductList() {
               </tr>
             </thead>
             <tbody>
-              {products.map(product => (
+              {products.map((product) => (
                 <tr key={product.id} className="border-b hover:bg-gray-50">
-                  <td className="px-6 py-4 text-sm text-gray-900 max-w-xs truncate">{product.name}</td>
+                  <td className="px-6 py-4 text-sm text-gray-900 max-w-xs truncate">
+                    {product.name}
+                  </td>
                   <td className="px-6 py-4 text-sm">
                     <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs font-medium capitalize">
                       {product.source}
                     </span>
                   </td>
-                  <td className="px-6 py-4 text-sm font-medium">${product.current_price}</td>
+                  <td className="px-6 py-4 text-sm font-medium">${product.currentPrice}</td>
                   <td className="px-6 py-4 text-sm">
-                    <span className={`font-medium ${product.margin_percentage > 20 ? 'text-green-600' : 'text-orange-600'}`}>
-                      {product.margin_percentage}%
+                    <span
+                      className={`font-medium ${
+                        product.marginPercentage > 20 ? 'text-green-600' : 'text-orange-600'
+                      }`}
+                    >
+                      {product.marginPercentage}%
                     </span>
                   </td>
                   <td className="px-6 py-4 text-sm">
                     {product.rating ? `⭐ ${product.rating}` : 'N/A'}
                   </td>
                   <td className="px-6 py-4 text-sm">
-                    <Link
-                      to={`/products/${product.id}`}
-                      className="text-primary hover:underline"
-                    >
+                    <Link to={`/products/${product.id}`} className="text-primary hover:underline">
                       View
                     </Link>
                   </td>

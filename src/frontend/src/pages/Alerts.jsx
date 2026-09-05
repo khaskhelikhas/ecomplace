@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useAuthStore } from '../store/authStore'
-import { apiUrl } from '../lib/api'
+import { getAlerts, deleteAlert } from '../lib/data'
 
 export default function Alerts() {
   const { user } = useAuthStore()
@@ -11,15 +11,13 @@ export default function Alerts() {
   useEffect(() => {
     if (userId) fetchAlerts()
     else setLoading(false)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId])
 
   const fetchAlerts = async () => {
     try {
-      const response = await fetch(apiUrl(`/api/alerts?userId=${userId}`))
-      const data = await response.json()
-      if (data.success) {
-        setAlerts(data.data)
-      }
+      const rows = await getAlerts(userId)
+      setAlerts(rows)
       setLoading(false)
     } catch (error) {
       console.error('Error fetching alerts:', error)
@@ -29,8 +27,8 @@ export default function Alerts() {
 
   const handleDeleteAlert = async (alertId) => {
     try {
-      await fetch(apiUrl(`/api/alerts/${alertId}`), { method: 'DELETE' })
-      setAlerts(alerts.filter(a => a.id !== alertId))
+      await deleteAlert(alertId)
+      setAlerts(alerts.filter((a) => a.id !== alertId))
     } catch (error) {
       console.error('Error deleting alert:', error)
     }
@@ -45,33 +43,41 @@ export default function Alerts() {
       {alerts.length === 0 ? (
         <div className="bg-white p-8 rounded-lg shadow text-center text-gray-500">
           <p>No alerts created yet</p>
-          <p className="text-sm mt-2">Create alerts from product pages to track price changes</p>
+          <p className="text-sm mt-2">
+            Create alerts from product pages to track price changes
+          </p>
         </div>
       ) : (
         <div className="space-y-4">
-          {alerts.map(alert => (
+          {alerts.map((alert) => (
             <div key={alert.id} className="bg-white p-6 rounded-lg shadow">
               <div className="flex justify-between items-start">
                 <div>
-                  <h3 className="text-lg font-bold">{alert.name}</h3>
+                  <h3 className="text-lg font-bold">{alert.name || 'Product'}</h3>
                   <p className="text-sm text-gray-600 mt-2">
-                    Type: <span className="font-medium capitalize">{alert.alert_type}</span>
+                    Type: <span className="font-medium capitalize">{alert.alertType}</span>
                   </p>
                   <div className="grid grid-cols-3 gap-4 mt-4 text-sm">
                     <div>
                       <p className="text-gray-600">Current Price</p>
-                      <p className="font-bold">${alert.current_price}</p>
+                      <p className="font-bold">${alert.currentPrice ?? '-'}</p>
                     </div>
                     <div>
                       <p className="text-gray-600">Target</p>
                       <p className="font-bold">
-                        {alert.target_price ? `$${alert.target_price}` : `${alert.target_margin}%`}
+                        {alert.targetPrice != null
+                          ? `$${alert.targetPrice}`
+                          : `${alert.targetMargin}%`}
                       </p>
                     </div>
                     <div>
                       <p className="text-gray-600">Status</p>
-                      <p className={`font-bold ${alert.is_triggered ? 'text-green-600' : 'text-blue-600'}`}>
-                        {alert.is_triggered ? '✓ Triggered' : 'Monitoring'}
+                      <p
+                        className={`font-bold ${
+                          alert.isTriggered ? 'text-green-600' : 'text-blue-600'
+                        }`}
+                      >
+                        {alert.isTriggered ? '✓ Triggered' : 'Monitoring'}
                       </p>
                     </div>
                   </div>

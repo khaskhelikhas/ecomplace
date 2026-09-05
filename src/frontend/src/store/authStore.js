@@ -1,78 +1,112 @@
 import { create } from 'zustand'
-import { apiFetch } from '../lib/api'
+import {
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+  signOut,
+  onAuthStateChanged,
+  updateProfile,
+} from 'firebase/auth'
+import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore'
+import { auth, db } from '../lib/firebase'
 
-const useAuthStore = create((set) => ({
-  user: null,
-  token: null,
-  loading: false,
+/**
+ * Auth state backed by Firebase Authentication.
+ * A matching profile document is kept in Firestore at users/{uid}.
+ */
+const useAuthStore = create((set, get) => ({
+  user: null,       // { id, email, fullName, subscriptionPlan }
+  loading: true,
   error: null,
 
+  // Subscribe to Firebase auth changes. Call once on app start.
   initAuth: () => {
-    const storedToken = localStorage.getItem('token')
-    const storedUser = localStorage.getItem('user')
-    if (storedToken && storedUser) {
+    onAuthStateChanged(auth, async (fbUser) => {
+      if (!fbUser) {
+        set({ user: null, loading: false })
+        return
+      }
+
+      let profile = {}
+      try {
+        const snap = await getDoc(doc(db, 'users', fbUser.uid))
+        if (snap.exists()) profile = snap.data()
+      } catch (e) {
+        console.error('Could not load profile:', e)
+      }
+
       set({
-        token: storedToken,
-        user: JSON.parse(storedUser)
+        user: {
+          id: fbUser.uid,
+          email: fbUser.email,
+          fullName: profile.fullName || fbUser.displayName || fbUser.email,
+          subscriptionPlan: profile.subscriptionPlan || 'free',
+        },
+        loading: false,
       })
-    }
+    })
   },
 
   login: async (email, password) => {
-    set({ loading: true, error: null })
+    set({ error: null })
     try {
-      const response = await apiFetch('/api/auth/login', {
-        method: 'POST',
-        body: JSON.stringify({ email, password })
-      })
-
-      if (!response.ok) throw new Error('Login failed')
-
-      const { data } = await response.json()
-      localStorage.setItem('token', data.token)
-      localStorage.setItem('user', JSON.stringify(data.user))
-
-      set({
-        user: data.user,
-        token: data.token,
-        loading: false
-      })
+      await signInWithEmailAndPassword(auth, email, password)
+      // onAuthStateChanged fills in user
     } catch (error) {
-      set({ error: error.message, loading: false })
-      throw error
+      const message = friendlyAuthError(error)
+      set({ error: message })
+      throw new Error(message)
     }
   },
 
   register: async (email, password, fullName) => {
-    set({ loading: true, error: null })
+    set({ error: null })
     try {
-      const response = await apiFetch('/api/auth/register', {
-        method: 'POST',
-        body: JSON.stringify({ email, password, fullName })
+      const cred = await createUserWithEmailAndPassword(auth, email, password)
+
+      if (fullName) {
+        await updateProfile(cred.user, { displayName: fullName })
+      }
+
+      await setDoc(doc(db, 'users', cred.user.uid), {
+        email,
+        fullName: fullName || email,
+        subscriptionPlan: 'free',
+        createdAt: serverTimestamp(),
       })
-
-      if (!response.ok) throw new Error('Registration failed')
-
-      const { data } = await response.json()
-      localStorage.setItem('token', data.token)
-      localStorage.setItem('user', JSON.stringify(data.user))
-
-      set({
-        user: data.user,
-        token: data.token,
-        loading: false
-      })
+      // onAuthStateChanged fills in user
     } catch (error) {
-      set({ error: error.message, loading: false })
-      throw error
+      const message = friendlyAuthError(error)
+      set({ error: message })
+      throw new Error(message)
     }
   },
 
-  logout: () => {
-    localStorage.removeItem('token')
-    localStorage.removeItem('user')
-    set({ user: null, token: null })
-  }
+  logout: async () => {
+    await signOut(auth)
+    set({ user: null })
+  },
 }))
+
+function friendlyAuthError(error) {
+  const code = error?.code || ''
+  switch (code) {
+    case 'auth/email-already-in-use':
+      return 'That email is already registered'
+    case 'auth/invalid-email':
+      return 'Enter a valid email address'
+    case 'auth/weak-password':
+      return 'Password must be at least 6 characters'
+    case 'auth/invalid-credential':
+    case 'auth/wrong-password':
+    case 'auth/user-not-found':
+      return 'Invalid email or password'
+    case 'auth/too-many-requests':
+      return 'Too many attempts - try again later'
+    case 'auth/operation-not-allowed':
+      return 'Email/Password sign-in is not enabled in Firebase yet'
+    default:
+      return error?.message || 'Authentication failed'
+  }
+}
 
 export { useAuthStore }

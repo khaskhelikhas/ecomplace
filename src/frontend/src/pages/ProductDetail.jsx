@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../store/authStore'
-import { apiUrl, apiFetch } from '../lib/api'
+import { getProduct, createAlert } from '../lib/data'
 
 export default function ProductDetail() {
   const { id } = useParams()
@@ -12,20 +12,18 @@ export default function ProductDetail() {
   const [alertForm, setAlertForm] = useState({
     alertType: 'price',
     targetPrice: 0,
-    targetMargin: 0
+    targetMargin: 0,
   })
 
   useEffect(() => {
     fetchProductDetail()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id])
 
   const fetchProductDetail = async () => {
     try {
-      const response = await fetch(apiUrl(`/api/products/${id}`))
-      const data = await response.json()
-      if (data.success) {
-        setProduct(data.data)
-      }
+      const data = await getProduct(id)
+      setProduct(data)
       setLoading(false)
     } catch (error) {
       console.error('Error fetching product:', error)
@@ -40,17 +38,15 @@ export default function ProductDetail() {
       return
     }
     try {
-      const response = await apiFetch('/api/alerts', {
-        method: 'POST',
-        body: JSON.stringify({
-          productId: id,
-          userId: user.id,
-          alertType: alertForm.alertType,
-          targetPrice: alertForm.alertType === 'price' ? Number(alertForm.targetPrice) : null,
-          targetMargin: alertForm.alertType === 'margin' ? Number(alertForm.targetMargin) : null
-        })
+      await createAlert({
+        userId: user.id,
+        productId: id,
+        alertType: alertForm.alertType,
+        targetPrice:
+          alertForm.alertType === 'price' ? Number(alertForm.targetPrice) : null,
+        targetMargin:
+          alertForm.alertType === 'margin' ? Number(alertForm.targetMargin) : null,
       })
-      if (!response.ok) throw new Error('Failed to create alert')
       alert('Alert created successfully')
     } catch (error) {
       console.error('Error creating alert:', error)
@@ -60,6 +56,15 @@ export default function ProductDetail() {
 
   if (loading) return <div className="p-8">Loading...</div>
   if (!product) return <div className="p-8">Product not found</div>
+
+  const fmtDate = (v) => {
+    try {
+      if (v?.toDate) return v.toDate().toLocaleDateString()
+      return new Date(v).toLocaleDateString()
+    } catch {
+      return ''
+    }
+  }
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
@@ -71,11 +76,10 @@ export default function ProductDetail() {
       </button>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-        {/* Product Info */}
         <div className="md:col-span-2 bg-white p-6 rounded-lg shadow">
-          {product.image_url && (
+          {product.imageUrl && (
             <img
-              src={product.image_url}
+              src={product.imageUrl}
               alt={product.name}
               className="w-full h-64 object-cover rounded-md mb-6"
             />
@@ -86,12 +90,16 @@ export default function ProductDetail() {
           <div className="grid grid-cols-2 gap-4 mb-6">
             <div>
               <p className="text-gray-600 text-sm">Current Price</p>
-              <p className="text-2xl font-bold">${product.current_price}</p>
+              <p className="text-2xl font-bold">${product.currentPrice}</p>
             </div>
             <div>
               <p className="text-gray-600 text-sm">Margin %</p>
-              <p className={`text-2xl font-bold ${product.margin_percentage > 20 ? 'text-green-600' : 'text-orange-600'}`}>
-                {product.margin_percentage}%
+              <p
+                className={`text-2xl font-bold ${
+                  product.marginPercentage > 20 ? 'text-green-600' : 'text-orange-600'
+                }`}
+              >
+                {product.marginPercentage}%
               </p>
             </div>
             <div>
@@ -110,7 +118,7 @@ export default function ProductDetail() {
               <div className="space-y-2">
                 {product.priceHistory.map((entry, idx) => (
                   <div key={idx} className="flex justify-between text-sm">
-                    <span className="text-gray-600">{new Date(entry.recorded_at).toLocaleDateString()}</span>
+                    <span className="text-gray-600">{fmtDate(entry.recordedAt)}</span>
                     <span className="font-medium">${entry.price}</span>
                   </div>
                 ))}
@@ -120,9 +128,9 @@ export default function ProductDetail() {
             )}
           </div>
 
-          {product.source_url && (
+          {product.sourceUrl && (
             <a
-              href={product.source_url}
+              href={product.sourceUrl}
               target="_blank"
               rel="noopener noreferrer"
               className="mt-6 block bg-primary text-white px-4 py-2 rounded-md hover:bg-blue-600 text-center"
@@ -132,7 +140,6 @@ export default function ProductDetail() {
           )}
         </div>
 
-        {/* Alert Creation */}
         <div className="bg-white p-6 rounded-lg shadow h-fit">
           <h2 className="text-xl font-bold mb-4">Create Alert</h2>
 

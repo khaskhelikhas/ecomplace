@@ -1,90 +1,85 @@
-# Deploying EcomPlace
+# Deploying EcomPlace (Firebase - all free)
 
-Two parts deploy separately:
+The app is now **Firebase-native**. No separate backend server.
 
-| Part | What | Where | Status |
-|---|---|---|---|
-| **Frontend** | React build | Firebase Hosting | ✅ **LIVE:** https://ecomplace-app.web.app |
-| **Backend** | Node/Express + SQLite | Render.com | ⏳ you deploy this next |
+| Piece | Service | Cost |
+|---|---|---|
+| Web app | Firebase Hosting | free |
+| Login / accounts | Firebase Authentication | free |
+| Products / alerts / profiles | Cloud Firestore | free (Spark) |
+| 20-minute product refresh | GitHub Actions cron -> Firestore | free |
 
-Login/register on the live site will fail until the backend is deployed and
-the frontend is rebuilt pointing at it.
+Firebase project: **ecomplace-app**
+Live URL: **https://ecomplace-app.web.app**
 
----
-
-## Step 1 - Push this repo to GitHub
-
-The git repo is already initialised and committed locally. You just need a
-GitHub repo to push to.
-
-1. Create an **empty** repo at https://github.com/new
-   - Name: `ecomplace`
-   - Do **not** add a README, .gitignore, or license
-2. Push (replace `YOUR_USERNAME`):
-   ```bash
-   cd D:\ecomplace
-   git remote add origin https://github.com/YOUR_USERNAME/ecomplace.git
-   git push -u origin main
-   ```
+The old Express backend under `src/backend/src/{server.js,routes,config,jobs}`
+is no longer used by the deployed app. Only `src/backend/src/services/mockData.js`
+and `src/backend/src/scripts/refresh-firestore.js` matter now.
 
 ---
 
-## Step 2 - Deploy the backend on Render
+## Step 1 - Enable Firestore + Auth (Firebase Console, ~4 clicks)
 
-1. Go to https://render.com and sign up (use **Sign in with GitHub**).
-2. **New** -> **Blueprint**.
-3. Pick your `ecomplace` repo. Render reads `render.yaml` automatically and
-   shows a service called **ecomplace-api**.
-4. Click **Apply**. Wait ~3-5 minutes for the first build.
-5. Open the service URL it gives you, e.g.
-   `https://ecomplace-api.onrender.com/api/health`
-   You should see `{"status":"ok",...}`.
+**Firestore**
+https://console.firebase.google.com/project/ecomplace-app/firestore
+-> Create database -> **Production mode** -> location `nam5 (United States)` -> Enable
 
-### Important: free-tier data note
-
-Render's free plan has **no persistent disk**. The SQLite file lives only
-while the service is awake. The free service **sleeps after 15 minutes of
-inactivity**, and on the next wake the database starts empty - so registered
-accounts and alerts are lost.
-
-That is fine for a demo. For real use, pick one:
-
-- **Render Starter ($7/mo)** - uncomment the `disk:` block is already in
-  `render.yaml`; just upgrade the instance type in the dashboard.
-- **Render free PostgreSQL** - create one in Render, then tell me and I will
-  switch the backend to use `DATABASE_URL` (keeps SQLite for local dev).
-- **Fly.io** - free tier includes a 3 GB persistent volume.
+**Authentication**
+https://console.firebase.google.com/project/ecomplace-app/authentication
+-> Get started -> **Email/Password** -> enable the first toggle -> Save
 
 ---
 
-## Step 3 - Point the frontend at the backend
+## Step 2 - Deploy rules + hosting
 
-1. Edit `src/frontend/.env.production`:
-   ```
-   VITE_API_URL=https://ecomplace-api.onrender.com
-   ```
-   (your real Render URL, no trailing slash)
-
-2. Rebuild and redeploy:
-   ```bash
-   cd D:\ecomplace\src\frontend
-   npm run build
-   cd ..\..
-   firebase deploy --only hosting
-   ```
-
-3. Open https://ecomplace-app.web.app -> **Register** -> it works.
-
----
-
-## Step 4 - Confirm CORS
-
-`render.yaml` already sets:
+```bash
+cd D:\ecomplace
+firebase deploy --only firestore:rules,hosting
 ```
-FRONTEND_URL=https://ecomplace-app.web.app,https://ecomplace-app.firebaseapp.com
+
+After this, https://ecomplace-app.web.app can register and log in.
+The product pages will be empty until Step 3 seeds data.
+
+---
+
+## Step 3 - Seed product data
+
+### One-time: get a service account key
+
+Firebase Console -> Project Settings (gear) -> **Service accounts** ->
+**Generate new private key** -> save the JSON somewhere private,
+e.g. `D:\ecomplace\serviceAccount.json` (already git-ignored).
+
+### Run the refresh once locally
+
+```powershell
+cd D:\ecomplace\src\backend
+$env:GOOGLE_APPLICATION_CREDENTIALS = "D:\ecomplace\serviceAccount.json"
+npm run refresh:firestore
 ```
-If you later add a custom domain, add it to that list in the Render
-dashboard (Environment tab) and the service will redeploy.
+
+You should see `Upserted 40 products`. Refresh the site - products appear.
+
+---
+
+## Step 4 - Automate the 20-minute refresh (GitHub Actions)
+
+1. Push this repo to GitHub (see below).
+2. Repo -> **Settings** -> **Secrets and variables** -> **Actions** ->
+   **New repository secret**:
+   - Name: `FIREBASE_SERVICE_ACCOUNT`
+   - Value: paste the **entire contents** of `serviceAccount.json`
+3. The workflow `.github/workflows/refresh-products.yml` then runs every
+   20 minutes automatically. Trigger it once manually from the **Actions**
+   tab to test (`Refresh product data` -> Run workflow).
+
+### Push to GitHub
+
+```bash
+cd D:\ecomplace
+git remote add origin https://github.com/YOUR_USERNAME/ecomplace.git
+git push -u origin main
+```
 
 ---
 
@@ -93,12 +88,13 @@ dashboard (Environment tab) and the service will redeploy.
 | Change | Command |
 |---|---|
 | Frontend | `cd src/frontend && npm run build && cd ../.. && firebase deploy --only hosting` |
-| Backend | `git push` - Render auto-redeploys |
+| Firestore rules | `firebase deploy --only firestore:rules` |
+| Refresh logic | `git push` (GitHub Actions picks it up) |
 
 ---
 
-## Firebase project
+## Real product data (optional)
 
-- Project ID: `ecomplace-app`
-- Console: https://console.firebase.google.com/project/ecomplace-app
-- Hosting URL: https://ecomplace-app.web.app
+Add repo secrets `KEEPA_API_KEY`, `WALMART_API_KEY`, `ALIEXPRESS_AFFILIATE_ID`
+and extend `src/backend/src/scripts/refresh-firestore.js` to call those APIs
+instead of `generateMockProducts`.

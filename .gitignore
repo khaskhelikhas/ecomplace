@@ -32,3 +32,6 @@ logs/
 .firebase/
 firebase-debug.log
 dataconnect-generated/
+serviceAccount.json
+*-service-account.json
+serviceAccountKey.json

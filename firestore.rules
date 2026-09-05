@@ -1,0 +1,38 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // A signed-in user
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    // Users can read/write only their own profile
+    match /users/{userId} {
+      allow read: if signedIn() && request.auth.uid == userId;
+      allow create, update: if signedIn() && request.auth.uid == userId;
+      allow delete: if false;
+    }
+
+    // Products are read-only for any signed-in user.
+    // Writes happen only from the seed/refresh script using the Admin SDK,
+    // which bypasses these rules.
+    match /products/{productId} {
+      allow read: if signedIn();
+      allow write: if false;
+
+      match /priceHistory/{entryId} {
+        allow read: if signedIn();
+        allow write: if false;
+      }
+    }
+
+    // Alerts belong to the user who created them.
+    match /alerts/{alertId} {
+      allow read: if signedIn() && resource.data.userId == request.auth.uid;
+      allow create: if signedIn() && request.resource.data.userId == request.auth.uid;
+      allow update, delete: if signedIn() && resource.data.userId == request.auth.uid;
+    }
+  }
+}
