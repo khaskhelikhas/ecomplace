@@ -1,125 +1,104 @@
 # Deploying EcomPlace
 
-The app has two parts that deploy separately:
+Two parts deploy separately:
 
-| Part | What it is | Where it goes |
-|---|---|---|
-| **Frontend** | Static React build (`dist/`) | **Firebase Hosting** |
-| **Backend** | Node/Express API + SQLite | **Render / Railway / Fly.io / VPS** |
+| Part | What | Where | Status |
+|---|---|---|---|
+| **Frontend** | React build | Firebase Hosting | ✅ **LIVE:** https://ecomplace-app.web.app |
+| **Backend** | Node/Express + SQLite | Render.com | ⏳ you deploy this next |
 
-> Firebase Hosting only serves static files. It cannot run the Express
-> server, so the backend must be hosted elsewhere. Firebase Functions is an
-> option but needs the paid Blaze plan and a rewrite away from SQLite, so it
-> is not covered here.
+Login/register on the live site will fail until the backend is deployed and
+the frontend is rebuilt pointing at it.
 
 ---
 
-## Part 1 - Deploy the Backend (do this first)
+## Step 1 - Push this repo to GitHub
 
-You need the backend URL before building the frontend.
+The git repo is already initialised and committed locally. You just need a
+GitHub repo to push to.
 
-### Option A - Render.com (free, keeps SQLite)
-
-1. Push this repo to GitHub.
-2. Go to https://render.com -> **New** -> **Web Service** -> connect the repo.
-3. Settings:
-   - **Root Directory**: `src/backend`
-   - **Build Command**: `npm install`
-   - **Start Command**: `npm start`
-   - **Instance Type**: Free
-4. Add a **Disk** (so the SQLite file survives restarts):
-   - Mount path: `/data`
-   - Size: 1 GB
-5. Add environment variables:
-   ```
-   NODE_ENV=production
-   DB_FILE=/data/ecomplace.sqlite
-   JWT_SECRET=<a long random string>
-   FRONTEND_URL=https://YOUR-PROJECT.web.app,https://YOUR-PROJECT.firebaseapp.com
-   ```
-   (add KEEPA_API_KEY etc. later for real data)
-6. Deploy. Note the URL, e.g. `https://ecomplace-api.onrender.com`.
-7. Test: open `https://ecomplace-api.onrender.com/api/health` -> `{"status":"ok"}`
-
-> Free Render services sleep after 15 min idle; the first request then takes
-> ~30 s to wake. Fine for testing, upgrade for production.
-
-### Option B - Railway.app
-
-Same idea: new project from repo, root `src/backend`, start `npm start`,
-add a volume mounted where `DB_FILE` points, set the same env vars.
-
----
-
-## Part 2 - Deploy the Frontend to Firebase Hosting
-
-### One-time setup
-
-1. Install the Firebase CLI:
+1. Create an **empty** repo at https://github.com/new
+   - Name: `ecomplace`
+   - Do **not** add a README, .gitignore, or license
+2. Push (replace `YOUR_USERNAME`):
    ```bash
-   npm install -g firebase-tools
+   cd D:\ecomplace
+   git remote add origin https://github.com/YOUR_USERNAME/ecomplace.git
+   git push -u origin main
    ```
-2. Log in (opens a browser):
-   ```bash
-   firebase login
-   ```
-3. Create a project at https://console.firebase.google.com (or use an
-   existing one). Copy its **Project ID**.
-4. Put the Project ID in `.firebaserc` (replace `REPLACE_WITH_YOUR_FIREBASE_PROJECT_ID`).
-
-### Point the frontend at your backend
-
-Edit `src/frontend/.env.production`:
-```
-VITE_API_URL=https://ecomplace-api.onrender.com
-```
-(no trailing slash, use your real backend URL)
-
-### Build and deploy
-
-From `D:\ecomplace`:
-```bash
-cd src/frontend
-npm run build
-cd ../..
-firebase deploy --only hosting
-```
-
-Firebase prints your live URL, e.g. `https://your-project.web.app`.
-
-### After first deploy
-
-Make sure the backend's `FRONTEND_URL` env var includes that exact URL
-(both `.web.app` and `.firebaseapp.com`), then redeploy/restart the backend
-so CORS accepts it.
 
 ---
 
-## Checklist
+## Step 2 - Deploy the backend on Render
 
-- [ ] Backend deployed, `/api/health` returns ok
-- [ ] Backend `FRONTEND_URL` contains the Firebase URLs
-- [ ] Backend `JWT_SECRET` set to a real secret
-- [ ] `src/frontend/.env.production` has `VITE_API_URL` = backend URL
-- [ ] `npm run build` in `src/frontend`
-- [ ] `.firebaserc` has your project ID
-- [ ] `firebase deploy --only hosting`
-- [ ] Open the Firebase URL, register, log in
+1. Go to https://render.com and sign up (use **Sign in with GitHub**).
+2. **New** -> **Blueprint**.
+3. Pick your `ecomplace` repo. Render reads `render.yaml` automatically and
+   shows a service called **ecomplace-api**.
+4. Click **Apply**. Wait ~3-5 minutes for the first build.
+5. Open the service URL it gives you, e.g.
+   `https://ecomplace-api.onrender.com/api/health`
+   You should see `{"status":"ok",...}`.
+
+### Important: free-tier data note
+
+Render's free plan has **no persistent disk**. The SQLite file lives only
+while the service is awake. The free service **sleeps after 15 minutes of
+inactivity**, and on the next wake the database starts empty - so registered
+accounts and alerts are lost.
+
+That is fine for a demo. For real use, pick one:
+
+- **Render Starter ($7/mo)** - uncomment the `disk:` block is already in
+  `render.yaml`; just upgrade the instance type in the dashboard.
+- **Render free PostgreSQL** - create one in Render, then tell me and I will
+  switch the backend to use `DATABASE_URL` (keeps SQLite for local dev).
+- **Fly.io** - free tier includes a 3 GB persistent volume.
+
+---
+
+## Step 3 - Point the frontend at the backend
+
+1. Edit `src/frontend/.env.production`:
+   ```
+   VITE_API_URL=https://ecomplace-api.onrender.com
+   ```
+   (your real Render URL, no trailing slash)
+
+2. Rebuild and redeploy:
+   ```bash
+   cd D:\ecomplace\src\frontend
+   npm run build
+   cd ..\..
+   firebase deploy --only hosting
+   ```
+
+3. Open https://ecomplace-app.web.app -> **Register** -> it works.
+
+---
+
+## Step 4 - Confirm CORS
+
+`render.yaml` already sets:
+```
+FRONTEND_URL=https://ecomplace-app.web.app,https://ecomplace-app.firebaseapp.com
+```
+If you later add a custom domain, add it to that list in the Render
+dashboard (Environment tab) and the service will redeploy.
 
 ---
 
 ## Updating later
 
-**Frontend change:**
-```bash
-cd src/frontend && npm run build && cd ../.. && firebase deploy --only hosting
-```
-
-**Backend change:** push to GitHub - Render/Railway auto-redeploys.
+| Change | Command |
+|---|---|
+| Frontend | `cd src/frontend && npm run build && cd ../.. && firebase deploy --only hosting` |
+| Backend | `git push` - Render auto-redeploys |
 
 ---
 
-## Custom domain (optional)
+## Firebase project
 
-Firebase Console -> Hosting -> Add custom domain -> follow DNS steps.
-Then add the custom domain to the backend `FRONTEND_URL` list too.
+- Project ID: `ecomplace-app`
+- Console: https://console.firebase.google.com/project/ecomplace-app
+- Hosting URL: https://ecomplace-app.web.app
