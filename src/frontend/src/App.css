@@ -1,61 +1,15 @@
-/* App specific styles */
-
-.loading {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 100vh;
-  font-size: 18px;
-  color: #6b7280;
-}
-
-.error {
-  background-color: #fee2e2;
-  border: 1px solid #fecaca;
-  color: #dc2626;
-  padding: 12px 16px;
-  border-radius: 6px;
-  margin-bottom: 16px;
-}
-
-.success {
-  background-color: #dcfce7;
-  border: 1px solid #bbf7d0;
-  color: #059669;
-  padding: 12px 16px;
-  border-radius: 6px;
-  margin-bottom: 16px;
-}
-
-/* Transitions */
-.fade-in {
-  animation: fadeIn 0.3s ease-in;
-}
-
-@keyframes fadeIn {
+/* Page transitions */
+@keyframes fadeUp {
   from {
     opacity: 0;
+    transform: translateY(6px);
   }
   to {
     opacity: 1;
+    transform: none;
   }
 }
 
-/* Button hover effects */
-button {
-  transition: all 0.2s ease;
-}
-
-button:hover:not(:disabled) {
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-}
-
-/* Table hover effects */
-table tbody tr {
-  transition: background-color 0.2s ease;
-}
-
-table tbody tr:hover {
-  background-color: #f9fafb;
+#root > * {
+  animation: fadeUp 0.25s ease;
 }

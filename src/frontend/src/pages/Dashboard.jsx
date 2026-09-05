@@ -1,171 +1,163 @@
 import { useState, useEffect } from 'react'
+import { Link } from 'react-router-dom'
 import { useAuthStore } from '../store/authStore'
 import { getProducts } from '../lib/data'
+import SignalBadge from '../components/SignalBadge'
 
 export default function Dashboard() {
   const { user } = useAuthStore()
-  const [stats, setStats] = useState({
-    totalProducts: 0,
-    averageMargin: 0,
-    topSeller: null,
-    bestMargin: null,
-    buySignals: [],
-  })
+  const [stats, setStats] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
   useEffect(() => {
-    fetchDashboardData()
+    ;(async () => {
+      try {
+        const products = await getProducts()
+        if (!products.length) {
+          setStats({ totalProducts: 0, avgDiscount: 0, buySignals: [], topDeal: null })
+        } else {
+          const totalDisc = products.reduce((s, p) => s + (p.marginPercentage || 0), 0)
+          const buySignals = products
+            .filter((p) => p.recommendation === 'BUY NOW')
+            .sort((a, b) => (b.dealScore || 0) - (a.dealScore || 0))
+            .slice(0, 6)
+          const topDeal = [...products].sort(
+            (a, b) => (b.marginPercentage || 0) - (a.marginPercentage || 0)
+          )[0]
+          setStats({
+            totalProducts: products.length,
+            avgDiscount: (totalDisc / products.length).toFixed(1),
+            buySignals,
+            topDeal,
+          })
+        }
+        setLoading(false)
+      } catch (e) {
+        console.error('dashboard', e)
+        setError('Could not load deals. They may still be loading — try again in a minute.')
+        setLoading(false)
+      }
+    })()
   }, [])
 
-  const fetchDashboardData = async () => {
-    try {
-      const products = await getProducts()
-
-      if (products.length > 0) {
-        const totalMargin = products.reduce(
-          (sum, p) => sum + (p.marginPercentage || 0),
-          0
-        )
-        const bestProduct = products.reduce((best, p) =>
-          (p.marginPercentage || 0) > (best.marginPercentage || 0) ? p : best
-        )
-        const topSeller = [...products].sort(
-          (a, b) => (a.bestSellersRank || 9999) - (b.bestSellersRank || 9999)
-        )[0]
-
-        const buySignals = products
-          .filter((p) => p.recommendation === 'BUY NOW')
-          .sort((a, b) => (b.dealScore || 0) - (a.dealScore || 0))
-          .slice(0, 5)
-
-        setStats({
-          totalProducts: products.length,
-          averageMargin: (totalMargin / products.length).toFixed(2),
-          topSeller,
-          bestMargin: bestProduct,
-          buySignals,
-        })
-      }
-      setLoading(false)
-    } catch (err) {
-      console.error('Error fetching dashboard:', err)
-      setError('Could not load data. Has the product data been seeded?')
-      setLoading(false)
-    }
-  }
-
-  if (loading) return <div className="p-8">Loading...</div>
+  if (loading) return <Shell><SkeletonDash /></Shell>
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-8">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold">
-          Welcome, {user?.fullName || user?.email}!
-        </h1>
-        <p className="text-gray-600 mt-2">Track deals and best-sellers in real-time</p>
+    <Shell>
+      {/* hero */}
+      <div className="rounded-xl bg-gradient-to-br from-brand-600 to-brand-700 text-white p-6 sm:p-8 shadow-pop mb-6">
+        <p className="text-white/70 text-sm">Welcome back</p>
+        <h1 className="text-2xl sm:text-3xl font-bold">{user?.fullName || user?.email}</h1>
+        <p className="text-white/80 mt-2 max-w-lg text-sm">
+          {stats.totalProducts} live deals tracked · refreshed every 20 minutes · each
+          scored buy / watch / skip.
+        </p>
       </div>
 
       {error && (
-        <div className="bg-yellow-50 border border-yellow-200 text-yellow-800 px-4 py-3 rounded mb-6">
+        <div className="card p-4 border-amber-200 bg-amber-50 text-amber-800 text-sm mb-6">
           {error}
         </div>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-        <div className="bg-white p-6 rounded-lg shadow">
-          <p className="text-gray-600 text-sm">Total Products</p>
-          <p className="text-3xl font-bold mt-2">{stats.totalProducts}</p>
-        </div>
-        <div className="bg-white p-6 rounded-lg shadow">
-          <p className="text-gray-600 text-sm">Avg Discount</p>
-          <p className="text-3xl font-bold text-green-600 mt-2">{stats.averageMargin}%</p>
-        </div>
-        <div className="bg-white p-6 rounded-lg shadow">
-          <p className="text-gray-600 text-sm">Subscription</p>
-          <p className="text-3xl font-bold capitalize mt-2">{user?.subscriptionPlan}</p>
-        </div>
-        <div className="bg-white p-6 rounded-lg shadow">
-          <p className="text-gray-600 text-sm">Products Tracked</p>
-          <p className="text-3xl font-bold mt-2">{stats.totalProducts}</p>
-        </div>
+      {/* stat tiles */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+        <Stat label="Live deals" value={stats.totalProducts} />
+        <Stat label="Avg discount" value={`${stats.avgDiscount}%`} accent="text-emerald-600" />
+        <Stat label="Buy signals" value={stats.buySignals.length} accent="text-brand-600" />
+        <Stat label="Plan" value={user?.subscriptionPlan} capitalize />
       </div>
 
-      <div className="bg-white p-6 rounded-lg shadow mb-8">
+      {/* buy signals */}
+      <section className="card p-5 sm:p-6 mb-8">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-bold">🎯 Top Buy Signals</h2>
-          <span className="text-xs text-gray-400">
-            auto-updated every 20 min · heuristic, not advice
-          </span>
+          <h2 className="text-lg font-bold flex items-center gap-2">🎯 Top buy signals</h2>
+          <span className="text-xs text-ink-400">heuristic · not advice</span>
         </div>
+
         {stats.buySignals.length === 0 ? (
-          <p className="text-gray-500 text-sm">
-            No strong buy signals right now — check the Products page for deals to watch.
+          <p className="text-ink-500 text-sm py-6 text-center">
+            No strong buy signals right now.{' '}
+            <Link to="/products" className="text-brand-600 font-medium">
+              Browse all deals →
+            </Link>
           </p>
         ) : (
-          <div className="space-y-3">
+          <div className="grid sm:grid-cols-2 gap-3">
             {stats.buySignals.map((p) => (
-              <a
+              <Link
                 key={p.id}
-                href={`/products/${p.id}`}
-                className="flex items-center justify-between border rounded-md p-3 hover:bg-gray-50"
+                to={`/products/${p.id}`}
+                className="group border border-slate-200 rounded-lg p-4 hover:border-brand-300 hover:shadow-card transition"
               >
-                <div className="min-w-0 pr-4">
-                  <p className="font-medium truncate">{p.name}</p>
-                  <p className="text-xs text-gray-500">{p.reason}</p>
+                <div className="flex items-start justify-between gap-3">
+                  <p className="font-semibold text-sm leading-snug line-clamp-2 group-hover:text-brand-700">
+                    {p.name}
+                  </p>
+                  <SignalBadge rec={p.recommendation} />
                 </div>
-                <div className="text-right shrink-0">
-                  <p className="font-bold">${p.currentPrice}</p>
-                  <p className="text-xs text-green-700">~${Math.round(p.flipMargin)} margin</p>
+                <p className="text-xs text-ink-500 mt-1 line-clamp-1">{p.reason}</p>
+                <div className="flex items-center gap-3 mt-3 text-sm">
+                  <span className="font-bold">${p.currentPrice}</span>
+                  <span className="text-emerald-600 font-medium">{p.marginPercentage}% off</span>
+                  {p.flipMargin > 0 && (
+                    <span className="text-ink-400">~${Math.round(p.flipMargin)} margin</span>
+                  )}
                 </div>
-              </a>
+              </Link>
             ))}
           </div>
         )}
-      </div>
+      </section>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-        {stats.topSeller && (
-          <div className="bg-white p-6 rounded-lg shadow">
-            <h2 className="text-xl font-bold mb-4">Top Deal</h2>
-            <div className="space-y-2">
-              <p className="font-semibold truncate">{stats.topSeller.name}</p>
-              <p className="text-sm text-gray-600">
-                Source:{' '}
-                <span className="font-medium capitalize">{stats.topSeller.source}</span>
-              </p>
-              <p className="text-sm text-gray-600">
-                Price: <span className="font-medium">${stats.topSeller.currentPrice}</span>
-              </p>
-              <p className="text-sm text-gray-600">
-                Rank: <span className="font-medium">#{stats.topSeller.bestSellersRank}</span>
-              </p>
-            </div>
+      {stats.topDeal && (
+        <Link to={`/products/${stats.topDeal.id}`} className="card p-5 sm:p-6 flex items-center gap-4 hover:shadow-card">
+          <div className="grid place-items-center w-12 h-12 rounded-lg bg-emerald-50 text-emerald-600 text-xl shrink-0">
+            %
           </div>
-        )}
+          <div className="min-w-0">
+            <p className="text-xs text-ink-500">Biggest discount right now</p>
+            <p className="font-semibold truncate">{stats.topDeal.name}</p>
+            <p className="text-sm text-ink-500">
+              ${stats.topDeal.currentPrice} ·{' '}
+              <span className="text-emerald-600 font-semibold">
+                {stats.topDeal.marginPercentage}% off
+              </span>{' '}
+              · {stats.topDeal.source}
+            </p>
+          </div>
+        </Link>
+      )}
+    </Shell>
+  )
+}
 
-        {stats.bestMargin && (
-          <div className="bg-white p-6 rounded-lg shadow">
-            <h2 className="text-xl font-bold mb-4">Biggest Discount</h2>
-            <div className="space-y-2">
-              <p className="font-semibold truncate">{stats.bestMargin.name}</p>
-              <p className="text-sm text-gray-600">
-                Source:{' '}
-                <span className="font-medium capitalize">{stats.bestMargin.source}</span>
-              </p>
-              <p className="text-sm text-gray-600">
-                Price: <span className="font-medium">${stats.bestMargin.currentPrice}</span>
-              </p>
-              <p className="text-sm text-green-600">
-                Discount:{' '}
-                <span className="font-bold text-lg">
-                  {stats.bestMargin.marginPercentage}%
-                </span>
-              </p>
-            </div>
-          </div>
-        )}
-      </div>
+function Shell({ children }) {
+  return <div className="max-w-7xl mx-auto px-4 py-6 sm:py-8">{children}</div>
+}
+
+function Stat({ label, value, accent = 'text-ink-900', capitalize }) {
+  return (
+    <div className="card p-4 sm:p-5">
+      <p className="text-xs sm:text-sm text-ink-500">{label}</p>
+      <p className={`text-2xl sm:text-3xl font-bold mt-1 ${accent} ${capitalize ? 'capitalize' : ''}`}>
+        {value}
+      </p>
     </div>
+  )
+}
+
+function SkeletonDash() {
+  return (
+    <>
+      <div className="skeleton h-32 rounded-xl mb-6" />
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+        {[0, 1, 2, 3].map((i) => (
+          <div key={i} className="skeleton h-24" />
+        ))}
+      </div>
+      <div className="skeleton h-64 rounded-xl" />
+    </>
   )
 }

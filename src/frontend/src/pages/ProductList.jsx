@@ -1,216 +1,170 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import { getProducts, buildProductsCsv } from '../lib/data'
+import SignalBadge from '../components/SignalBadge'
+
+const REC_ORDER = { 'BUY NOW': 0, WATCH: 1, SKIP: 2 }
 
 export default function ProductList() {
-  const [products, setProducts] = useState([])
-  const [sources, setSources] = useState([])
+  const [all, setAll] = useState([])
   const [loading, setLoading] = useState(true)
-  const [filters, setFilters] = useState({
-    search: '',
-    source: 'all',
-    minMargin: 0,
-    maxMargin: 100,
-  })
+  const [f, setF] = useState({ search: '', source: 'all', signal: 'all', minDisc: 0 })
 
   useEffect(() => {
-    fetchProducts()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filters])
-
-  const fetchProducts = async () => {
-    try {
-      setLoading(true)
-      const rows = await getProducts({
-        search: filters.search.trim() || undefined,
-        source: filters.source,
-        minMargin: Number(filters.minMargin) > 0 ? Number(filters.minMargin) : undefined,
-        maxMargin: Number(filters.maxMargin) < 100 ? Number(filters.maxMargin) : undefined,
-      })
-      setProducts(rows)
-      // Derive the source list from the data itself (only on the unfiltered set)
-      if (filters.source === 'all' && !filters.search.trim()) {
-        setSources([...new Set(rows.map((r) => r.source).filter(Boolean))].sort())
+    ;(async () => {
+      try {
+        setAll(await getProducts())
+      } catch (e) {
+        console.error(e)
       }
       setLoading(false)
-    } catch (error) {
-      console.error('Error fetching products:', error)
-      setLoading(false)
+    })()
+  }, [])
+
+  const sources = useMemo(
+    () => [...new Set(all.map((p) => p.source).filter(Boolean))].sort(),
+    [all]
+  )
+
+  const rows = useMemo(() => {
+    let r = all
+    if (f.search.trim()) {
+      const s = f.search.toLowerCase()
+      r = r.filter((p) => p.name?.toLowerCase().includes(s))
     }
-  }
+    if (f.source !== 'all') r = r.filter((p) => p.source === f.source)
+    if (f.signal !== 'all') r = r.filter((p) => (p.recommendation || 'WATCH') === f.signal)
+    if (Number(f.minDisc) > 0) r = r.filter((p) => (p.marginPercentage || 0) >= Number(f.minDisc))
+    return [...r].sort(
+      (a, b) =>
+        (REC_ORDER[a.recommendation] ?? 1) - (REC_ORDER[b.recommendation] ?? 1) ||
+        (b.dealScore || 0) - (a.dealScore || 0)
+    )
+  }, [all, f])
 
-  const prettySource = (s) =>
-    s.replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
+  const pretty = (s) => s.replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
 
-  const signalStyle = (rec) =>
-    rec === 'BUY NOW'
-      ? 'bg-green-100 text-green-800'
-      : rec === 'WATCH'
-        ? 'bg-amber-100 text-amber-800'
-        : 'bg-gray-100 text-gray-600'
-
-  const handleFilterChange = (e) => {
-    const { name, value } = e.target
-    setFilters({ ...filters, [name]: value })
-  }
-
-  const handleExportCSV = async () => {
-    try {
-      const csv = await buildProductsCsv()
-      const blob = new Blob([csv], { type: 'text/csv' })
-      const url = window.URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = 'products.csv'
-      a.click()
-      window.URL.revokeObjectURL(url)
-    } catch (error) {
-      console.error('Error exporting CSV:', error)
-    }
+  const exportCsv = async () => {
+    const csv = await buildProductsCsv()
+    const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }))
+    const a = document.createElement('a')
+    a.href = url
+    a.download = 'ecomplace-deals.csv'
+    a.click()
+    URL.revokeObjectURL(url)
   }
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-8">
-      <div className="flex justify-between items-center mb-8">
-        <h1 className="text-3xl font-bold">Products</h1>
-        <button
-          onClick={handleExportCSV}
-          className="bg-secondary text-white px-4 py-2 rounded-md hover:bg-orange-600"
-        >
-          Export CSV
+    <div className="max-w-7xl mx-auto px-4 py-6 sm:py-8">
+      <div className="flex flex-wrap items-end justify-between gap-3 mb-5">
+        <div>
+          <h1 className="text-2xl font-bold">Deals</h1>
+          <p className="text-ink-500 text-sm">
+            {loading ? 'Loading…' : `${rows.length} of ${all.length} deals`}
+          </p>
+        </div>
+        <button onClick={exportCsv} className="btn-ghost text-sm">
+          ⬇ Export CSV
         </button>
       </div>
 
-      <div className="bg-white p-6 rounded-lg shadow mb-8">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Search</label>
-            <input
-              type="text"
-              name="search"
-              value={filters.search}
-              onChange={handleFilterChange}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
-              placeholder="Search products..."
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Source</label>
-            <select
-              name="source"
-              value={filters.source}
-              onChange={handleFilterChange}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
-            >
-              <option value="all">All Sources</option>
-              {sources.map((s) => (
-                <option key={s} value={s}>
-                  {prettySource(s)}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Min Discount %</label>
-            <input
-              type="number"
-              name="minMargin"
-              value={filters.minMargin}
-              onChange={handleFilterChange}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
-              min="0"
-              max="100"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Max Discount %</label>
-            <input
-              type="number"
-              name="maxMargin"
-              value={filters.maxMargin}
-              onChange={handleFilterChange}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
-              min="0"
-              max="100"
-            />
-          </div>
+      {/* filters */}
+      <div className="card p-4 mb-6 grid grid-cols-2 md:grid-cols-4 gap-3">
+        <div className="col-span-2 md:col-span-1">
+          <label className="label">Search</label>
+          <input
+            className="field"
+            placeholder="Air duster, LEGO…"
+            value={f.search}
+            onChange={(e) => setF({ ...f, search: e.target.value })}
+          />
+        </div>
+        <div>
+          <label className="label">Retailer</label>
+          <select className="field" value={f.source} onChange={(e) => setF({ ...f, source: e.target.value })}>
+            <option value="all">All</option>
+            {sources.map((s) => (
+              <option key={s} value={s}>
+                {pretty(s)}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label className="label">Signal</label>
+          <select className="field" value={f.signal} onChange={(e) => setF({ ...f, signal: e.target.value })}>
+            <option value="all">All</option>
+            <option>BUY NOW</option>
+            <option>WATCH</option>
+            <option>SKIP</option>
+          </select>
+        </div>
+        <div>
+          <label className="label">Min discount %</label>
+          <input
+            className="field"
+            type="number"
+            min="0"
+            max="100"
+            value={f.minDisc}
+            onChange={(e) => setF({ ...f, minDisc: e.target.value })}
+          />
         </div>
       </div>
 
+      {/* grid */}
       {loading ? (
-        <div className="text-center py-8">Loading...</div>
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {Array.from({ length: 9 }).map((_, i) => (
+            <div key={i} className="skeleton h-44" />
+          ))}
+        </div>
+      ) : rows.length === 0 ? (
+        <div className="card p-10 text-center text-ink-500">No deals match these filters.</div>
       ) : (
-        <div className="bg-white rounded-lg shadow overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-gray-100 border-b">
-              <tr>
-                <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Product</th>
-                <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Source</th>
-                <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Price</th>
-                <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Discount</th>
-                <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Signal</th>
-                <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Est. margin</th>
-                <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              {products.map((product) => (
-                <tr key={product.id} className="border-b hover:bg-gray-50">
-                  <td className="px-6 py-4 text-sm text-gray-900 max-w-xs truncate">
-                    {product.name}
-                  </td>
-                  <td className="px-6 py-4 text-sm">
-                    <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs font-medium capitalize">
-                      {product.source}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 text-sm font-medium">${product.currentPrice}</td>
-                  <td className="px-6 py-4 text-sm">
-                    <span
-                      className={`font-medium ${
-                        product.marginPercentage > 20 ? 'text-green-600' : 'text-orange-600'
-                      }`}
-                    >
-                      {product.marginPercentage}%
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 text-sm whitespace-nowrap">
-                    <span
-                      className={`px-2 py-1 rounded text-xs font-bold ${signalStyle(
-                        product.recommendation
-                      )}`}
-                    >
-                      {product.recommendation || 'WATCH'}
-                    </span>
-                    {product.dropChance != null && (
-                      <span className="block text-xs text-gray-400 mt-1">
-                        {product.dropChance}% may drop
-                      </span>
-                    )}
-                  </td>
-                  <td className="px-6 py-4 text-sm font-medium text-green-700">
-                    {product.flipMargin ? `~$${Math.round(product.flipMargin)}` : '-'}
-                  </td>
-                  <td className="px-6 py-4 text-sm">
-                    <Link to={`/products/${product.id}`} className="text-primary hover:underline">
-                      View
-                    </Link>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-
-          {products.length === 0 && (
-            <div className="text-center py-8 text-gray-500">
-              No products found matching your filters
-            </div>
-          )}
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {rows.map((p) => (
+            <DealCard key={p.id} p={p} />
+          ))}
         </div>
       )}
     </div>
+  )
+}
+
+function DealCard({ p }) {
+  const disc = p.marginPercentage || 0
+  return (
+    <Link
+      to={`/products/${p.id}`}
+      className="card p-4 flex flex-col hover:shadow-pop hover:border-brand-200 transition group"
+    >
+      <div className="flex items-start justify-between gap-2 mb-2">
+        <span className="chip bg-slate-100 text-slate-600 capitalize">
+          {p.source?.replace(/-/g, ' ')}
+        </span>
+        <SignalBadge rec={p.recommendation} />
+      </div>
+
+      <p className="font-semibold text-sm leading-snug line-clamp-2 group-hover:text-brand-700 min-h-[2.5rem]">
+        {p.name}
+      </p>
+
+      <div className="flex items-end gap-2 mt-3">
+        <span className="text-xl font-bold">${p.currentPrice}</span>
+        {disc > 0 && (
+          <span className="chip bg-emerald-100 text-emerald-700 mb-0.5">−{disc}%</span>
+        )}
+      </div>
+
+      <div className="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-ink-500">
+        <span>
+          {p.dropChance != null ? `${p.dropChance}% may drop` : ''}
+        </span>
+        <span className="text-emerald-600 font-semibold">
+          {p.flipMargin > 0 ? `~$${Math.round(p.flipMargin)} margin` : ''}
+        </span>
+      </div>
+    </Link>
   )
 }

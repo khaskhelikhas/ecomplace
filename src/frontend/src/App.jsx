@@ -42,8 +42,8 @@ function App() {
       </Routes>
 
       {user && (
-        <footer className="max-w-7xl mx-auto px-4 py-8 text-center text-xs text-gray-400">
-          Deal data from public feeds (DealNews, Slickdeals). Outbound links may
+        <footer className="max-w-7xl mx-auto px-4 py-10 text-center text-xs text-ink-400 border-t border-slate-200 mt-8">
+          Deal data from public feeds (DealNews · Slickdeals). Outbound links may
           earn EcomPlace a commission at no cost to you. Signals are heuristic
           estimates, not financial advice.
         </footer>
