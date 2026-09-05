@@ -139,11 +139,28 @@ function DealCard({ p }) {
       to={`/products/${p.id}`}
       className="card p-4 flex flex-col hover:shadow-pop hover:border-brand-200 transition group"
     >
-      <div className="flex items-start justify-between gap-2 mb-2">
-        <span className="chip bg-slate-100 text-slate-600 capitalize">
+      <div className="relative -mx-4 -mt-4 mb-3 h-40 bg-slate-50 rounded-t-xl overflow-hidden">
+        {p.imageUrl ? (
+          <img
+            src={p.imageUrl}
+            alt=""
+            loading="lazy"
+            className="w-full h-full object-contain p-3"
+            onError={(e) => {
+              e.currentTarget.style.display = 'none'
+            }}
+          />
+        ) : (
+          <div className="w-full h-full grid place-items-center text-3xl text-slate-300">
+            🏷️
+          </div>
+        )}
+        <span className="absolute top-2 left-2 chip bg-white/90 backdrop-blur text-slate-600 capitalize shadow-sm">
           {p.source?.replace(/-/g, ' ')}
         </span>
-        <SignalBadge rec={p.recommendation} />
+        <span className="absolute top-2 right-2">
+          <SignalBadge rec={p.recommendation} />
+        </span>
       </div>
 
       <p className="font-semibold text-sm leading-snug line-clamp-2 group-hover:text-brand-700 min-h-[2.5rem]">

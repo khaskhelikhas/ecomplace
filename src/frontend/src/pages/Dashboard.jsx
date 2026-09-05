@@ -89,21 +89,36 @@ export default function Dashboard() {
               <Link
                 key={p.id}
                 to={`/products/${p.id}`}
-                className="group border border-slate-200 rounded-lg p-4 hover:border-brand-300 hover:shadow-card transition"
+                className="group border border-slate-200 rounded-lg p-4 hover:border-brand-300 hover:shadow-card transition flex gap-3"
               >
-                <div className="flex items-start justify-between gap-3">
-                  <p className="font-semibold text-sm leading-snug line-clamp-2 group-hover:text-brand-700">
-                    {p.name}
-                  </p>
-                  <SignalBadge rec={p.recommendation} />
-                </div>
-                <p className="text-xs text-ink-500 mt-1 line-clamp-1">{p.reason}</p>
-                <div className="flex items-center gap-3 mt-3 text-sm">
-                  <span className="font-bold">${p.currentPrice}</span>
-                  <span className="text-emerald-600 font-medium">{p.marginPercentage}% off</span>
-                  {p.flipMargin > 0 && (
-                    <span className="text-ink-400">~${Math.round(p.flipMargin)} margin</span>
+                <div className="w-16 h-16 shrink-0 rounded-lg bg-slate-50 grid place-items-center overflow-hidden">
+                  {p.imageUrl ? (
+                    <img
+                      src={p.imageUrl}
+                      alt=""
+                      loading="lazy"
+                      className="w-full h-full object-contain p-1"
+                      onError={(e) => (e.currentTarget.style.display = 'none')}
+                    />
+                  ) : (
+                    <span className="text-xl text-slate-300">🏷️</span>
                   )}
+                </div>
+                <div className="min-w-0">
+                  <div className="flex items-start justify-between gap-2">
+                    <p className="font-semibold text-sm leading-snug line-clamp-2 group-hover:text-brand-700">
+                      {p.name}
+                    </p>
+                    <SignalBadge rec={p.recommendation} />
+                  </div>
+                  <p className="text-xs text-ink-500 mt-1 line-clamp-1">{p.reason}</p>
+                  <div className="flex items-center gap-3 mt-2 text-sm">
+                    <span className="font-bold">${p.currentPrice}</span>
+                    <span className="text-emerald-600 font-medium">{p.marginPercentage}% off</span>
+                    {p.flipMargin > 0 && (
+                      <span className="text-ink-400">~${Math.round(p.flipMargin)}</span>
+                    )}
+                  </div>
                 </div>
               </Link>
             ))}

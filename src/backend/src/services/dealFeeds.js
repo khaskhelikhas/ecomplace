@@ -68,6 +68,15 @@ const parseListPrice = (desc = '', current = 0) => {
   return null;
 };
 
+/** Ask the DealNews CDN for a larger render than the ~125px feed thumbnail. */
+const upsizeImage = (url = '') => {
+  if (!url) return url
+  if (url.includes('d.dlnws.com')) {
+    return url.split('?')[0] + '?w=500'
+  }
+  return url
+}
+
 const cleanName = (title = '') =>
   title
     .replace(/\s+for\s+\$[0-9,.]+.*$/i, '')
@@ -126,7 +135,7 @@ export async function fetchSlickdeals() {
       best_sellers_rank: i + 1,
       fba_fee: 0,
       shipping_cost: 0,
-      image_url: imgMatch ? imgMatch[1] : null,
+      image_url: imgMatch ? upsizeImage(imgMatch[1]) : null,
       expires_at: null,
       asin: null,
       sku: `slickdeals-${dealId}`,
@@ -181,7 +190,7 @@ export async function fetchDealNews() {
       best_sellers_rank: i + 1,
       fba_fee: 0,
       shipping_cost: 0,
-      image_url: imgMatch ? imgMatch[1] : null,
+      image_url: imgMatch ? upsizeImage(imgMatch[1]) : null,
       expires_at: expires,
       asin: null,
       sku: `dealnews-${link.match(/(\d+)\.html/)?.[1] || i}`,
