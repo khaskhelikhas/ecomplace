@@ -75,6 +75,67 @@ const cleanName = (title = '') =>
     .replace(/:\s*$/,'')
     .trim();
 
+const SLICKDEALS_URL =
+  'https://slickdeals.net/newsearch.php?mode=frontpage&searcharea=deals&searchin=first&rss=1';
+
+/**
+ * Slickdeals frontpage RSS - community-voted deals. No key.
+ */
+export async function fetchSlickdeals() {
+  const res = await fetch(SLICKDEALS_URL, { headers: { 'User-Agent': UA } });
+  if (!res.ok) throw new Error(`Slickdeals feed HTTP ${res.status}`);
+  const xml = await res.text();
+
+  const items = xml.match(/<item>[\s\S]*?<\/item>/g) || [];
+  const out = [];
+
+  items.forEach((item, i) => {
+    const title = tag(item, 'title');
+    const link = tag(item, 'link');
+    if (!title || !link) return;
+
+    const desc = tag(item, 'description') || '';
+    const encoded = tag(item, 'content:encoded') || '';
+
+    const current = parsePrice(title) ?? parsePrice(desc);
+    if (current == null) return;
+
+    // "... via Amazon [amazon.com] has ..." -> retailer
+    const viaMatch = desc.match(/\bvia\s+([A-Za-z0-9 .&'-]+?)\s*(?:\[|has\b)/i);
+    const retailer = viaMatch ? viaMatch[1].trim() : 'Slickdeals';
+
+    const list = parseListPrice(desc + ' ' + encoded, current);
+    const discountPct =
+      list && list > current ? Number((((list - current) / list) * 100).toFixed(2)) : 0;
+
+    const imgMatch = encoded.match(/<img[^>]+src=['"]([^'"]+)['"]/i);
+    const thumb = (encoded.match(/Thumb Score:\s*\+?(-?\d+)/i) || [])[1];
+    const dealId = link.match(/\/f\/(\d+)/)?.[1] || i;
+
+    out.push({
+      name: cleanName(title),
+      category: 'Deals',
+      source: slugRetailer(retailer),
+      source_url: link,
+      current_price: current,
+      previous_price: list || current,
+      margin_percentage: discountPct,
+      // community thumbs as a rough popularity proxy (0-5 scale)
+      rating: thumb ? Math.max(0, Math.min(5, Number((Number(thumb) / 20).toFixed(1)))) : 0,
+      reviews_count: thumb ? Math.abs(Number(thumb)) : 0,
+      best_sellers_rank: i + 1,
+      fba_fee: 0,
+      shipping_cost: 0,
+      image_url: imgMatch ? imgMatch[1] : null,
+      expires_at: null,
+      asin: null,
+      sku: `slickdeals-${dealId}`,
+    });
+  });
+
+  return out;
+}
+
 /**
  * Fetch and normalise the DealNews feed into product-shaped objects that
  * match the fields the app/Firestore expect.
@@ -128,4 +189,24 @@ export async function fetchDealNews() {
   });
 
   return out;
+}
+
+/**
+ * All free feeds combined, de-duplicated by name+price.
+ */
+export async function fetchAllDeals() {
+  const results = await Promise.allSettled([fetchDealNews(), fetchSlickdeals()]);
+  const merged = [];
+  const seen = new Set();
+
+  for (const r of results) {
+    if (r.status !== 'fulfilled') continue;
+    for (const d of r.value) {
+      const key = `${d.name.toLowerCase().slice(0, 40)}|${d.current_price}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      merged.push(d);
+    }
+  }
+  return merged;
 }

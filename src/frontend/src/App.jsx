@@ -40,6 +40,14 @@ function App() {
 
         <Route path="*" element={<Navigate to={user ? '/' : '/login'} />} />
       </Routes>
+
+      {user && (
+        <footer className="max-w-7xl mx-auto px-4 py-8 text-center text-xs text-gray-400">
+          Deal data from public feeds (DealNews, Slickdeals). Outbound links may
+          earn EcomPlace a commission at no cost to you. Signals are heuristic
+          estimates, not financial advice.
+        </footer>
+      )}
     </BrowserRouter>
   )
 }

@@ -3,20 +3,15 @@ import ReactDOM from 'react-dom/client'
 import App from './App.jsx'
 import './index.css'
 
-// Register Service Worker for offline support.
-// Reload once when a new worker takes over so deploys are picked up.
+// No service worker: this is a live-data site, a cached app shell only causes
+// stale deploys. Clean up any worker a previous version installed.
 if ('serviceWorker' in navigator) {
-  let reloaded = false
-  navigator.serviceWorker.addEventListener('controllerchange', () => {
-    if (reloaded) return
-    reloaded = true
-    window.location.reload()
+  navigator.serviceWorker.getRegistrations().then((regs) => {
+    regs.forEach((r) => r.unregister())
   })
-  window.addEventListener('load', () => {
-    navigator.serviceWorker
-      .register('/sw.js')
-      .catch((err) => console.log('Service Worker registration failed:', err))
-  })
+  if (window.caches) {
+    caches.keys().then((keys) => keys.forEach((k) => caches.delete(k)))
+  }
 }
 
 ReactDOM.createRoot(document.getElementById('root')).render(

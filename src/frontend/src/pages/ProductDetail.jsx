@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../store/authStore'
 import { getProduct, createAlert } from '../lib/data'
+import PriceChart from '../components/PriceChart'
 
 export default function ProductDetail() {
   const { id } = useParams()
@@ -56,15 +57,6 @@ export default function ProductDetail() {
 
   if (loading) return <div className="p-8">Loading...</div>
   if (!product) return <div className="p-8">Product not found</div>
-
-  const fmtDate = (v) => {
-    try {
-      if (v?.toDate) return v.toDate().toLocaleDateString()
-      return new Date(v).toLocaleDateString()
-    } catch {
-      return ''
-    }
-  }
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
@@ -166,18 +158,7 @@ export default function ProductDetail() {
 
           <div className="border-t pt-6">
             <h2 className="text-xl font-bold mb-4">Price History</h2>
-            {product.priceHistory && product.priceHistory.length > 0 ? (
-              <div className="space-y-2">
-                {product.priceHistory.map((entry, idx) => (
-                  <div key={idx} className="flex justify-between text-sm">
-                    <span className="text-gray-600">{fmtDate(entry.recordedAt)}</span>
-                    <span className="font-medium">${entry.price}</span>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className="text-gray-500">No price history available</p>
-            )}
+            <PriceChart history={product.priceHistory} />
           </div>
 
           {product.sourceUrl && (

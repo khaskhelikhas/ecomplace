@@ -15,8 +15,11 @@
 import { initializeApp, cert, applicationDefault } from 'firebase-admin/app';
 import { getFirestore, FieldValue } from 'firebase-admin/firestore';
 import { generateMockProducts } from '../services/mockData.js';
-import { fetchDealNews } from '../services/dealFeeds.js';
+import { fetchAllDeals } from '../services/dealFeeds.js';
 import { computeSignals } from '../services/signals.js';
+import { affiliateUrl } from '../services/affiliate.js';
+import { notifyTriggeredAlert } from '../services/notify.js';
+import { postDealToTelegram } from '../services/telegram.js';
 
 const PROJECT_ID = process.env.FIREBASE_PROJECT_ID || 'ecomplace-app';
 
@@ -67,10 +70,10 @@ async function main() {
   // generated demo data only if the feed is unreachable.
   let raw = [];
   try {
-    raw = await fetchDealNews();
-    console.log(`Fetched ${raw.length} live deals from DealNews`);
+    raw = await fetchAllDeals();
+    console.log(`Fetched ${raw.length} live deals from free feeds`);
   } catch (err) {
-    console.warn(`DealNews feed failed (${err.message}) - using demo data`);
+    console.warn(`Deal feeds failed (${err.message}) - using demo data`);
   }
   if (raw.length === 0) {
     raw = generateMockProducts(40);
@@ -82,10 +85,12 @@ async function main() {
 
   const now = FieldValue.serverTimestamp();
   let written = 0;
+  let posted = 0;
 
   for (const p of raw) {
     const id = docId(p);
     const ref = db.collection('products').doc(id);
+    const prevDoc = await ref.get();
     const current = p.current_price ?? 0;
 
     // Recent price points (newest first) from earlier refreshes.
@@ -101,7 +106,7 @@ async function main() {
       name: p.name,
       category: p.category || 'General',
       source: p.source,
-      sourceUrl: p.source_url,
+      sourceUrl: affiliateUrl(p.source_url, p.source),
       asin: p.asin || null,
       sku: p.sku || null,
       currentPrice: current,
@@ -129,13 +134,24 @@ async function main() {
       recordedAt: now,
     });
     written++;
+
+    // Broadcast a fresh strong deal to Telegram once.
+    const wasPosted = prevDoc.exists && prevDoc.data().postedToTelegram;
+    if (data.recommendation === 'BUY NOW' && !wasPosted) {
+      const ok = await postDealToTelegram(data);
+      if (ok) {
+        await ref.set({ postedToTelegram: true }, { merge: true });
+        posted++;
+      }
+    }
   }
 
-  console.log(`Upserted ${written} products`);
+  console.log(`Upserted ${written} products` + (posted ? `, posted ${posted} to Telegram` : ''));
 
-  // Trigger alerts whose condition is now met
+  // Trigger alerts whose condition is now met, and email the owner.
   const alertsSnap = await db.collection('alerts').where('isTriggered', '==', false).get();
   let triggered = 0;
+  let emailed = 0;
   for (const alertDoc of alertsSnap.docs) {
     const a = alertDoc.data();
     const prod = await db.collection('products').doc(a.productId).get();
@@ -144,12 +160,24 @@ async function main() {
     const hit =
       (a.targetPrice != null && pd.currentPrice <= a.targetPrice) ||
       (a.targetMargin != null && pd.marginPercentage >= a.targetMargin);
-    if (hit) {
-      await alertDoc.ref.update({ isTriggered: true, triggeredAt: now });
-      triggered++;
+    if (!hit) continue;
+
+    await alertDoc.ref.update({ isTriggered: true, triggeredAt: now });
+    triggered++;
+
+    let email = null;
+    try {
+      const u = await db.collection('users').doc(a.userId).get();
+      email = u.exists ? u.data().email : null;
+    } catch {
+      /* ignore */
+    }
+    if (email && (await notifyTriggeredAlert({ email, product: pd, alert: a }))) {
+      await alertDoc.ref.update({ notificationSent: true });
+      emailed++;
     }
   }
-  console.log(`Triggered ${triggered} alerts`);
+  console.log(`Triggered ${triggered} alerts` + (emailed ? `, emailed ${emailed}` : ''));
 
   // Trim price history to the newest 30 points per product
   const productsSnap = await db.collection('products').get();
