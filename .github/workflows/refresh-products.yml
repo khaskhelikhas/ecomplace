@@ -29,7 +29,20 @@ jobs:
         env:
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
           FIREBASE_PROJECT_ID: ecomplace-app-4db34
-          # Optional real data sources:
+          APP_URL: https://ecomplace-app-4db34.web.app
+          # --- Affiliate IDs (add the programs you joined) ---
+          AMAZON_ASSOC_TAG: ${{ secrets.AMAZON_ASSOC_TAG }}
+          EBAY_CAMPAIGN_ID: ${{ secrets.EBAY_CAMPAIGN_ID }}
+          WALMART_AFFILIATE_QS: ${{ secrets.WALMART_AFFILIATE_QS }}
+          ALIEXPRESS_AFFILIATE_QS: ${{ secrets.ALIEXPRESS_AFFILIATE_QS }}
+          GENERIC_AFFILIATE_QS: ${{ secrets.GENERIC_AFFILIATE_QS }}
+          # --- Email alerts (Resend) ---
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          NOTIFY_FROM: ${{ secrets.NOTIFY_FROM }}
+          # --- Telegram channel broadcast ---
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          # --- Optional paid data sources ---
           KEEPA_API_KEY: ${{ secrets.KEEPA_API_KEY }}
           WALMART_API_KEY: ${{ secrets.WALMART_API_KEY }}
           ALIEXPRESS_AFFILIATE_ID: ${{ secrets.ALIEXPRESS_AFFILIATE_ID }}
