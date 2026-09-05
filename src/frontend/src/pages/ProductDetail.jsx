@@ -1,0 +1,191 @@
+import { useState, useEffect } from 'react'
+import { useParams, useNavigate } from 'react-router-dom'
+import { useAuthStore } from '../store/authStore'
+import { apiUrl, apiFetch } from '../lib/api'
+
+export default function ProductDetail() {
+  const { id } = useParams()
+  const navigate = useNavigate()
+  const { user } = useAuthStore()
+  const [product, setProduct] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [alertForm, setAlertForm] = useState({
+    alertType: 'price',
+    targetPrice: 0,
+    targetMargin: 0
+  })
+
+  useEffect(() => {
+    fetchProductDetail()
+  }, [id])
+
+  const fetchProductDetail = async () => {
+    try {
+      const response = await fetch(apiUrl(`/api/products/${id}`))
+      const data = await response.json()
+      if (data.success) {
+        setProduct(data.data)
+      }
+      setLoading(false)
+    } catch (error) {
+      console.error('Error fetching product:', error)
+      setLoading(false)
+    }
+  }
+
+  const handleAlertSubmit = async (e) => {
+    e.preventDefault()
+    if (!user?.id) {
+      alert('Please log in again to create alerts')
+      return
+    }
+    try {
+      const response = await apiFetch('/api/alerts', {
+        method: 'POST',
+        body: JSON.stringify({
+          productId: id,
+          userId: user.id,
+          alertType: alertForm.alertType,
+          targetPrice: alertForm.alertType === 'price' ? Number(alertForm.targetPrice) : null,
+          targetMargin: alertForm.alertType === 'margin' ? Number(alertForm.targetMargin) : null
+        })
+      })
+      if (!response.ok) throw new Error('Failed to create alert')
+      alert('Alert created successfully')
+    } catch (error) {
+      console.error('Error creating alert:', error)
+      alert('Could not create alert')
+    }
+  }
+
+  if (loading) return <div className="p-8">Loading...</div>
+  if (!product) return <div className="p-8">Product not found</div>
+
+  return (
+    <div className="max-w-7xl mx-auto px-4 py-8">
+      <button
+        onClick={() => navigate('/products')}
+        className="text-primary hover:underline mb-6"
+      >
+        ← Back to Products
+      </button>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+        {/* Product Info */}
+        <div className="md:col-span-2 bg-white p-6 rounded-lg shadow">
+          {product.image_url && (
+            <img
+              src={product.image_url}
+              alt={product.name}
+              className="w-full h-64 object-cover rounded-md mb-6"
+            />
+          )}
+
+          <h1 className="text-3xl font-bold mb-4">{product.name}</h1>
+
+          <div className="grid grid-cols-2 gap-4 mb-6">
+            <div>
+              <p className="text-gray-600 text-sm">Current Price</p>
+              <p className="text-2xl font-bold">${product.current_price}</p>
+            </div>
+            <div>
+              <p className="text-gray-600 text-sm">Margin %</p>
+              <p className={`text-2xl font-bold ${product.margin_percentage > 20 ? 'text-green-600' : 'text-orange-600'}`}>
+                {product.margin_percentage}%
+              </p>
+            </div>
+            <div>
+              <p className="text-gray-600 text-sm">Source</p>
+              <p className="text-lg font-medium capitalize">{product.source}</p>
+            </div>
+            <div>
+              <p className="text-gray-600 text-sm">Rating</p>
+              <p className="text-lg">⭐ {product.rating || 'N/A'}</p>
+            </div>
+          </div>
+
+          <div className="border-t pt-6">
+            <h2 className="text-xl font-bold mb-4">Price History</h2>
+            {product.priceHistory && product.priceHistory.length > 0 ? (
+              <div className="space-y-2">
+                {product.priceHistory.map((entry, idx) => (
+                  <div key={idx} className="flex justify-between text-sm">
+                    <span className="text-gray-600">{new Date(entry.recorded_at).toLocaleDateString()}</span>
+                    <span className="font-medium">${entry.price}</span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-gray-500">No price history available</p>
+            )}
+          </div>
+
+          {product.source_url && (
+            <a
+              href={product.source_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-6 block bg-primary text-white px-4 py-2 rounded-md hover:bg-blue-600 text-center"
+            >
+              View on {product.source}
+            </a>
+          )}
+        </div>
+
+        {/* Alert Creation */}
+        <div className="bg-white p-6 rounded-lg shadow h-fit">
+          <h2 className="text-xl font-bold mb-4">Create Alert</h2>
+
+          <form onSubmit={handleAlertSubmit} className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Alert Type</label>
+              <select
+                value={alertForm.alertType}
+                onChange={(e) => setAlertForm({ ...alertForm, alertType: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+              >
+                <option value="price">Price Drop</option>
+                <option value="margin">Margin Target</option>
+              </select>
+            </div>
+
+            {alertForm.alertType === 'price' && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Target Price</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  value={alertForm.targetPrice}
+                  onChange={(e) => setAlertForm({ ...alertForm, targetPrice: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                  placeholder="$0.00"
+                />
+              </div>
+            )}
+
+            {alertForm.alertType === 'margin' && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Target Margin %</label>
+                <input
+                  type="number"
+                  step="0.1"
+                  value={alertForm.targetMargin}
+                  onChange={(e) => setAlertForm({ ...alertForm, targetMargin: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
+                  placeholder="0%"
+                />
+              </div>
+            )}
+
+            <button
+              type="submit"
+              className="w-full bg-primary text-white py-2 rounded-md hover:bg-blue-600"
+            >
+              Create Alert
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+  )
+}
