@@ -71,7 +71,7 @@ export default function Dashboard() {
           <p className="text-3xl font-bold mt-2">{stats.totalProducts}</p>
         </div>
         <div className="bg-white p-6 rounded-lg shadow">
-          <p className="text-gray-600 text-sm">Average Margin</p>
+          <p className="text-gray-600 text-sm">Avg Discount</p>
           <p className="text-3xl font-bold text-green-600 mt-2">{stats.averageMargin}%</p>
         </div>
         <div className="bg-white p-6 rounded-lg shadow">
@@ -87,7 +87,7 @@ export default function Dashboard() {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
         {stats.topSeller && (
           <div className="bg-white p-6 rounded-lg shadow">
-            <h2 className="text-xl font-bold mb-4">Top Best-Seller</h2>
+            <h2 className="text-xl font-bold mb-4">Top Deal</h2>
             <div className="space-y-2">
               <p className="font-semibold truncate">{stats.topSeller.name}</p>
               <p className="text-sm text-gray-600">
@@ -106,7 +106,7 @@ export default function Dashboard() {
 
         {stats.bestMargin && (
           <div className="bg-white p-6 rounded-lg shadow">
-            <h2 className="text-xl font-bold mb-4">Best Margin Opportunity</h2>
+            <h2 className="text-xl font-bold mb-4">Biggest Discount</h2>
             <div className="space-y-2">
               <p className="font-semibold truncate">{stats.bestMargin.name}</p>
               <p className="text-sm text-gray-600">
@@ -117,7 +117,7 @@ export default function Dashboard() {
                 Price: <span className="font-medium">${stats.bestMargin.currentPrice}</span>
               </p>
               <p className="text-sm text-green-600">
-                Margin:{' '}
+                Discount:{' '}
                 <span className="font-bold text-lg">
                   {stats.bestMargin.marginPercentage}%
                 </span>

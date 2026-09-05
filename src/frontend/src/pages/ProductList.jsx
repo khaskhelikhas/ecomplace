@@ -4,6 +4,7 @@ import { getProducts, buildProductsCsv } from '../lib/data'
 
 export default function ProductList() {
   const [products, setProducts] = useState([])
+  const [sources, setSources] = useState([])
   const [loading, setLoading] = useState(true)
   const [filters, setFilters] = useState({
     search: '',
@@ -27,12 +28,19 @@ export default function ProductList() {
         maxMargin: Number(filters.maxMargin) < 100 ? Number(filters.maxMargin) : undefined,
       })
       setProducts(rows)
+      // Derive the source list from the data itself (only on the unfiltered set)
+      if (filters.source === 'all' && !filters.search.trim()) {
+        setSources([...new Set(rows.map((r) => r.source).filter(Boolean))].sort())
+      }
       setLoading(false)
     } catch (error) {
       console.error('Error fetching products:', error)
       setLoading(false)
     }
   }
+
+  const prettySource = (s) =>
+    s.replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
 
   const handleFilterChange = (e) => {
     const { name, value } = e.target
@@ -89,14 +97,16 @@ export default function ProductList() {
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary"
             >
               <option value="all">All Sources</option>
-              <option value="amazon-us">Amazon US</option>
-              <option value="walmart-us">Walmart US</option>
-              <option value="aliexpress">AliExpress</option>
+              {sources.map((s) => (
+                <option key={s} value={s}>
+                  {prettySource(s)}
+                </option>
+              ))}
             </select>
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Min Margin %</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Min Discount %</label>
             <input
               type="number"
               name="minMargin"
@@ -109,7 +119,7 @@ export default function ProductList() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Max Margin %</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Max Discount %</label>
             <input
               type="number"
               name="maxMargin"
@@ -133,7 +143,7 @@ export default function ProductList() {
                 <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Product</th>
                 <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Source</th>
                 <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Price</th>
-                <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Margin</th>
+                <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Discount</th>
                 <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Rating</th>
                 <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900">Action</th>
               </tr>
