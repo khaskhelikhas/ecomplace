@@ -28,7 +28,7 @@ jobs:
         working-directory: src/backend
         env:
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
-          FIREBASE_PROJECT_ID: ecomplace-app
+          FIREBASE_PROJECT_ID: ecomplace-app-4db34
           # Optional real data sources:
           KEEPA_API_KEY: ${{ secrets.KEEPA_API_KEY }}
           WALMART_API_KEY: ${{ secrets.WALMART_API_KEY }}
