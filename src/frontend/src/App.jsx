@@ -70,7 +70,7 @@ function App() {
               <Route path="/analyzer" element={<Analyzer />} />
               <Route path="/settings" element={<Settings />} />
               <Route path="/upgrade" element={<Upgrade />} />
-              <Route path="/admin" element={<Admin />} />
+              {user.isAdmin && <Route path="/admin" element={<Admin />} />}
               <Route path="*" element={<Navigate to="/" />} />
             </>
           ) : (

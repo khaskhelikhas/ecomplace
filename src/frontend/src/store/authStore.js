@@ -49,11 +49,20 @@ const useAuthStore = create((set, get) => ({
         console.error('Could not load profile:', e)
       }
 
+      let isAdmin = false
+      try {
+        const tok = await fbUser.getIdTokenResult()
+        isAdmin = tok.claims.admin === true
+      } catch {
+        /* ignore */
+      }
+
       set({
         user: {
           id: fbUser.uid,
           email: fbUser.email,
           emailVerified: fbUser.emailVerified,
+          isAdmin,
           fullName: profile.fullName || fbUser.displayName || fbUser.email,
           subscriptionPlan: profile.subscriptionPlan || 'free',
           affiliateAmazonTag: profile.affiliateAmazonTag || '',
@@ -82,9 +91,16 @@ const useAuthStore = create((set, get) => ({
       await fbUser.reload()
       const snap = await getDoc(doc(db, 'users', fbUser.uid))
       const profile = snap.exists() ? snap.data() : {}
+      let isAdmin = u.isAdmin
+      try {
+        isAdmin = (await fbUser.getIdTokenResult(true)).claims.admin === true
+      } catch {
+        /* ignore */
+      }
       set({
         user: {
           ...u,
+          isAdmin,
           emailVerified: fbUser.emailVerified,
           subscriptionPlan: profile.subscriptionPlan || 'free',
           fullName: profile.fullName || u.fullName,

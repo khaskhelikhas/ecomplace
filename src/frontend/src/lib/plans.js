@@ -5,13 +5,9 @@
  * Fill the Stripe Payment Link URLs (monthly + annual) once you create them.
  */
 
-export const ADMIN_EMAILS = [
-  'safdaraleekhaskheli@gmail.com',
-  'saifee.khaskheli@gmail.com',
-]
-
-export const isAdmin = (user) =>
-  !!user?.email && ADMIN_EMAILS.includes(user.email.toLowerCase())
+// Admin status comes from a signed Firebase custom claim on the ID token
+// (see src/backend `npm run set-admin`). No admin identity is embedded here.
+export const isAdmin = (user) => !!user?.isAdmin
 
 const F = (over = {}) => ({
   csvExport: false,

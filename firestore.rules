@@ -7,13 +7,11 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    // Super-admin allowlist. Add / remove emails here (must match the
-    // ADMIN_EMAILS list in the frontend).
+    // Admin is a signed custom claim on the ID token (set via
+    // `npm run set-admin <email>` in src/backend). It cannot be forged from
+    // the client and no admin identity ships in the web bundle.
     function isAdmin() {
-      return signedIn() && request.auth.token.email in [
-        'safdaraleekhaskheli@gmail.com',
-        'saifee.khaskheli@gmail.com'
-      ];
+      return signedIn() && request.auth.token.admin == true;
     }
 
     match /users/{userId} {

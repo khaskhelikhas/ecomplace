@@ -8,7 +8,8 @@
     "dev": "node --watch src/server.js",
     "start": "node src/server.js",
     "refresh:firestore": "node src/scripts/refresh-firestore.js",
-    "generate:seo": "node src/scripts/generate-seo.js"
+    "generate:seo": "node src/scripts/generate-seo.js",
+    "set-admin": "node src/scripts/set-admin.js"
   },
   "dependencies": {
     "axios": "^1.6.5",
