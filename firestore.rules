@@ -33,6 +33,13 @@ service cloud.firestore {
       }
     }
 
+    // Pre-built list snapshot — one small doc the dashboard/deals pages read
+    // instead of fetching every product document on each visit.
+    match /snapshots/{snapId} {
+      allow read: if signedIn();
+      allow write: if false;
+    }
+
     // Alerts belong to the user who created them.
     match /alerts/{alertId} {
       allow read: if signedIn() && resource.data.userId == request.auth.uid;

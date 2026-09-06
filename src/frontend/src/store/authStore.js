@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
+  sendPasswordResetEmail,
   signOut,
   onAuthStateChanged,
   updateProfile,
@@ -101,6 +102,14 @@ const useAuthStore = create((set, get) => ({
   logout: async () => {
     await signOut(auth)
     set({ user: null })
+  },
+
+  resetPassword: async (email) => {
+    try {
+      await sendPasswordResetEmail(auth, email)
+    } catch (error) {
+      throw new Error(friendlyAuthError(error))
+    }
   },
 }))
 

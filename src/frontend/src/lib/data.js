@@ -27,16 +27,36 @@ import { db } from './firebase'
 
 const num = (v) => (typeof v === 'number' ? v : Number(v) || 0)
 
-/**
- * Fetch products, newest fetch first, then filter client-side.
- * Product counts here are small (tens to low hundreds) so this is fine.
- */
-export async function getProducts(filters = {}) {
+// Cache the snapshot for the lifetime of the page load so Dashboard + Deals
+// share a single Firestore read.
+let _snapshotPromise = null
+export function primeProducts() {
+  _snapshotPromise = null
+}
+
+async function loadAllProducts() {
+  // Preferred: one small pre-built doc.
+  try {
+    const s = await getDoc(doc(db, 'snapshots', 'latest'))
+    if (s.exists() && Array.isArray(s.data().products) && s.data().products.length) {
+      return s.data().products
+    }
+  } catch {
+    /* fall through to the collection */
+  }
+  // Fallback: read the product collection directly.
   const snap = await getDocs(
     query(collection(db, 'products'), orderBy('dealScore', 'desc'), fbLimit(500))
   )
+  return snap.docs.map((d) => ({ id: d.id, ...d.data() }))
+}
 
-  let rows = snap.docs.map((d) => ({ id: d.id, ...d.data() }))
+/**
+ * Fetch the product list (from the shared snapshot) and filter client-side.
+ */
+export async function getProducts(filters = {}) {
+  if (!_snapshotPromise) _snapshotPromise = loadAllProducts()
+  let rows = [...(await _snapshotPromise)]
 
   if (filters.search) {
     const s = filters.search.toLowerCase()
@@ -112,6 +132,34 @@ export async function getAlerts(userId) {
       }
       return a
     })
+  )
+}
+
+/** Cheap: number of the user's alerts that have fired but not been seen. */
+export async function countUnseenAlerts(userId) {
+  if (!userId) return 0
+  const snap = await getDocs(
+    query(
+      collection(db, 'alerts'),
+      where('userId', '==', userId),
+      where('isTriggered', '==', true)
+    )
+  )
+  return snap.docs.filter((d) => !d.data().seen).length
+}
+
+/** Mark all triggered alerts as seen (called when the Alerts page opens). */
+export async function markAlertsSeen(userId) {
+  if (!userId) return
+  const snap = await getDocs(
+    query(
+      collection(db, 'alerts'),
+      where('userId', '==', userId),
+      where('isTriggered', '==', true)
+    )
+  )
+  await Promise.all(
+    snap.docs.filter((d) => !d.data().seen).map((d) => updateDoc(d.ref, { seen: true }))
   )
 }
 

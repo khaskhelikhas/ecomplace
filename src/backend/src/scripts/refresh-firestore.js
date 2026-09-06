@@ -86,6 +86,7 @@ async function main() {
   const now = FieldValue.serverTimestamp();
   let written = 0;
   let posted = 0;
+  const snapshotRows = [];
 
   for (const p of raw) {
     const id = docId(p);
@@ -135,6 +136,28 @@ async function main() {
     });
     written++;
 
+    // Lightweight row for the list snapshot (no server timestamps inside arrays).
+    snapshotRows.push({
+      id,
+      name: data.name,
+      category: data.category,
+      source: data.source,
+      sourceUrl: data.sourceUrl,
+      currentPrice: data.currentPrice,
+      previousPrice: data.previousPrice,
+      marginPercentage: data.marginPercentage,
+      rating: data.rating,
+      imageUrl: data.imageUrl,
+      bestSellersRank: data.bestSellersRank,
+      dealScore: data.dealScore ?? 0,
+      recommendation: data.recommendation ?? 'WATCH',
+      reason: data.reason ?? '',
+      trend: data.trend ?? 'stable',
+      dropChance: data.dropChance ?? null,
+      flipMargin: data.flipMargin ?? 0,
+      expiresInHours: data.expiresInHours ?? null,
+    });
+
     // Broadcast a fresh strong deal to Telegram once.
     const wasPosted = prevDoc.exists && prevDoc.data().postedToTelegram;
     if (data.recommendation === 'BUY NOW' && !wasPosted) {
@@ -147,6 +170,15 @@ async function main() {
   }
 
   console.log(`Upserted ${written} products` + (posted ? `, posted ${posted} to Telegram` : ''));
+
+  // One small doc the dashboard / deals pages read instead of every product.
+  snapshotRows.sort((a, b) => (b.dealScore || 0) - (a.dealScore || 0));
+  await db.collection('snapshots').doc('latest').set({
+    products: snapshotRows,
+    count: snapshotRows.length,
+    updatedAt: now,
+  });
+  console.log(`Wrote list snapshot (${snapshotRows.length} products)`);
 
   // Trigger alerts whose condition is now met, and email the owner.
   const alertsSnap = await db.collection('alerts').where('isTriggered', '==', false).get();

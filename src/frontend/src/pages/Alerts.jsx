@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuthStore } from '../store/authStore'
-import { getAlerts, deleteAlert } from '../lib/data'
+import { getAlerts, deleteAlert, markAlertsSeen } from '../lib/data'
 
 export default function Alerts() {
   const { user } = useAuthStore()
@@ -14,6 +14,7 @@ export default function Alerts() {
     ;(async () => {
       try {
         setAlerts(await getAlerts(uid))
+        markAlertsSeen(uid).catch(() => {})
       } catch (e) {
         console.error(e)
       }

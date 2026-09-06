@@ -1,11 +1,19 @@
-import { useState } from 'react'
-import { useNavigate, NavLink } from 'react-router-dom'
+import { useState, useEffect } from 'react'
+import { useNavigate, NavLink, useLocation } from 'react-router-dom'
 import { useAuthStore } from '../store/authStore'
+import { countUnseenAlerts } from '../lib/data'
 
 export default function Navbar() {
   const navigate = useNavigate()
+  const location = useLocation()
   const { user, logout } = useAuthStore()
   const [open, setOpen] = useState(false)
+  const [alertCount, setAlertCount] = useState(0)
+
+  useEffect(() => {
+    if (!user?.id) return
+    countUnseenAlerts(user.id).then(setAlertCount).catch(() => {})
+  }, [user?.id, location.pathname])
 
   const handleLogout = async () => {
     await logout()
@@ -38,6 +46,11 @@ export default function Navbar() {
             </NavLink>
             <NavLink to="/alerts" className={link}>
               Alerts
+              {alertCount > 0 && (
+                <span className="ml-1.5 inline-grid place-items-center min-w-[18px] h-[18px] px-1 rounded-full bg-rose-500 text-white text-[11px] font-bold">
+                  {alertCount}
+                </span>
+              )}
             </NavLink>
           </div>
 
