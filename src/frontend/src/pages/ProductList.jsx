@@ -4,6 +4,7 @@ import { getProducts, buildProductsCsv } from '../lib/data'
 import { useAuthStore } from '../store/authStore'
 import { can, minPlanFor } from '../lib/plans'
 import SignalBadge from '../components/SignalBadge'
+import SaveButton from '../components/SaveButton'
 
 const REC_ORDER = { 'BUY NOW': 0, WATCH: 1, SKIP: 2 }
 
@@ -171,6 +172,7 @@ function DealCard({ p }) {
         <span className="absolute top-2 right-2">
           <SignalBadge rec={p.recommendation} />
         </span>
+        <SaveButton product={p} size="sm" className="absolute bottom-2 right-2" />
       </div>
 
       <p className="font-semibold text-sm leading-snug line-clamp-2 group-hover:text-brand-700 min-h-[2.5rem]">

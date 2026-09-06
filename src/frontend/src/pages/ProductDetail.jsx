@@ -6,6 +6,7 @@ import { getProduct, createAlert, addSourcing, countAlerts, countSourcing } from
 import { withUserAffiliate, hasUserAffiliate } from '../lib/userAffiliate'
 import { limitOf, planOf, can } from '../lib/plans'
 import SignalBadge from '../components/SignalBadge'
+import SaveButton from '../components/SaveButton'
 import ProfitCalc from '../components/ProfitCalc'
 import { track } from '../lib/firebase'
 
@@ -113,6 +114,7 @@ export default function ProductDetail() {
               {p.source?.replace(/-/g, ' ')}
             </span>
             <SignalBadge rec={p.recommendation} />
+            <SaveButton product={{ id, ...p }} className="ml-auto" />
           </div>
 
           {p.imageUrl && (

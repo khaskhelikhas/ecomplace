@@ -46,6 +46,9 @@ export default function Navbar() {
             <NavLink to="/products" className={link}>
               Deals
             </NavLink>
+            <NavLink to="/flips" className={link}>
+              Flips
+            </NavLink>
             <NavLink to="/sourcing" className={link}>
               Sourcing
             </NavLink>
@@ -57,6 +60,9 @@ export default function Navbar() {
                 API
               </NavLink>
             )}
+            <NavLink to="/saved" className={link} title="Saved deals">
+              ☆
+            </NavLink>
             <NavLink to="/alerts" className={link}>
               Alerts
               {alertCount > 0 && (
@@ -97,6 +103,8 @@ export default function Navbar() {
                     {[
                       ['/', 'Dashboard'],
                       ['/products', 'Deals'],
+                      ['/flips', 'Flips'],
+                      ['/saved', 'Saved'],
                       ['/sourcing', 'Sourcing'],
                       ['/analyzer', 'Analyzer'],
                       ...(hasApi ? [['/api', 'API']] : []),

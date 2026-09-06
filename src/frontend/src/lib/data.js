@@ -355,6 +355,37 @@ export async function removeSourcing(uid, id) {
   return deleteDoc(doc(db, 'users', uid, 'sourcing', id))
 }
 
+/* ---------------- saved deals / watchlist ---------------- */
+
+export async function getSaved(uid) {
+  if (!uid) return []
+  const snap = await getDocs(
+    query(collection(db, 'users', uid, 'saved'), orderBy('savedAt', 'desc'))
+  )
+  return snap.docs.map((d) => ({ id: d.id, ...d.data() }))
+}
+
+/** Doc id = product id, so saving twice is idempotent. */
+export async function addSaved(uid, p) {
+  return setDoc(doc(db, 'users', uid, 'saved', p.id), {
+    productId: p.id,
+    name: p.name || '',
+    source: p.source || '',
+    sourceUrl: p.sourceUrl || null,
+    currentPrice: p.currentPrice ?? null,
+    marginPercentage: p.marginPercentage ?? 0,
+    imageUrl: p.imageUrl || null,
+    recommendation: p.recommendation || 'WATCH',
+    flipMargin: p.flipMargin ?? 0,
+    dropChance: p.dropChance ?? null,
+    savedAt: serverTimestamp(),
+  })
+}
+
+export async function removeSaved(uid, productId) {
+  return deleteDoc(doc(db, 'users', uid, 'saved', productId))
+}
+
 /**
  * Build a CSV string from the current product set.
  */

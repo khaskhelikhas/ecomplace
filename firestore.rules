@@ -30,6 +30,11 @@ service cloud.firestore {
       match /sourcing/{itemId} {
         allow read, create, update, delete: if signedIn() && request.auth.uid == userId;
       }
+
+      // One-click saved deals / watchlist.
+      match /saved/{itemId} {
+        allow read, create, update, delete: if signedIn() && request.auth.uid == userId;
+      }
     }
 
     match /products/{productId} {

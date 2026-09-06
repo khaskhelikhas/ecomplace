@@ -9,6 +9,7 @@ import Landing from './pages/Landing'
 import Terms from './pages/Terms'
 import Privacy from './pages/Privacy'
 import { useAuthStore } from './store/authStore'
+import { useSavedStore } from './store/savedStore'
 import './App.css'
 
 const Dashboard = lazy(() => import('./pages/Dashboard'))
@@ -21,6 +22,8 @@ const Upgrade = lazy(() => import('./pages/Upgrade'))
 const Admin = lazy(() => import('./pages/Admin'))
 const Analyzer = lazy(() => import('./pages/Analyzer'))
 const Api = lazy(() => import('./pages/Api'))
+const TopFlips = lazy(() => import('./pages/TopFlips'))
+const Saved = lazy(() => import('./pages/Saved'))
 
 const Spinner = () => (
   <div className="max-w-7xl mx-auto px-4 py-16 text-center text-ink-400 text-sm">Loading…</div>
@@ -28,10 +31,17 @@ const Spinner = () => (
 
 function App() {
   const { user, loading, initAuth, refreshProfile } = useAuthStore()
+  const loadSaved = useSavedStore((s) => s.load)
+  const resetSaved = useSavedStore((s) => s.reset)
 
   useEffect(() => {
     initAuth()
   }, [])
+
+  useEffect(() => {
+    if (user?.id) loadSaved(user.id)
+    else resetSaved()
+  }, [user?.id, loadSaved, resetSaved])
 
   // Pick up plan / verification changes when the tab regains focus.
   useEffect(() => {
@@ -67,6 +77,8 @@ function App() {
               <Route path="/" element={<Dashboard />} />
               <Route path="/products" element={<ProductList />} />
               <Route path="/products/:id" element={<ProductDetail />} />
+              <Route path="/flips" element={<TopFlips />} />
+              <Route path="/saved" element={<Saved />} />
               <Route path="/alerts" element={<Alerts />} />
               <Route path="/sourcing" element={<Sourcing />} />
               <Route path="/analyzer" element={<Analyzer />} />
