@@ -1,8 +1,10 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, lazy, Suspense } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuthStore } from '../store/authStore'
 import { getProducts } from '../lib/data'
 import SignalBadge from '../components/SignalBadge'
+
+const ProfitTrend = lazy(() => import('../components/ProfitTrend'))
 
 export default function Dashboard() {
   const { user } = useAuthStore()
@@ -104,6 +106,10 @@ export default function Dashboard() {
         <Stat label="Buy signals" value={stats.buySignals.length} accent="text-brand-600" />
         <Stat label="Plan" value={user?.subscriptionPlan} capitalize />
       </div>
+
+      <Suspense fallback={<div className="skeleton h-72 rounded-xl mb-8" />}>
+        <ProfitTrend />
+      </Suspense>
 
       {/* buy signals */}
       <section className="card p-5 sm:p-6 mb-8">

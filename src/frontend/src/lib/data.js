@@ -386,6 +386,17 @@ export async function removeSaved(uid, productId) {
   return deleteDoc(doc(db, 'users', uid, 'saved', productId))
 }
 
+/* ---------------- dashboard: daily opportunity stats ---------------- */
+
+export async function getDailyStats() {
+  try {
+    const s = await getDoc(doc(db, 'snapshots', 'dailyStats'))
+    return s.exists() && Array.isArray(s.data().series) ? s.data().series : []
+  } catch {
+    return []
+  }
+}
+
 /**
  * Build a CSV string from the current product set.
  */

@@ -196,7 +196,12 @@ export default function Sourcing() {
                   {STATUSES.map((s) => (
                     <button
                       key={s}
-                      onClick={() => patch(r.id, { status: s, purchased: s !== 'planned' })}
+                      onClick={() => {
+                        const extra = {}
+                        if (s === 'sold' && r.status !== 'sold') extra.soldAt = new Date().toISOString()
+                        if (s !== 'sold' && r.status === 'sold') extra.soldAt = null
+                        patch(r.id, { status: s, purchased: s !== 'planned', ...extra })
+                      }}
                       className={`text-xs px-3 py-1.5 rounded-lg font-medium capitalize ${
                         r.status === s
                           ? 'bg-brand-600 text-white'

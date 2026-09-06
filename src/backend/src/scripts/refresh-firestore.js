@@ -180,6 +180,31 @@ async function main() {
   });
   console.log(`Wrote list snapshot (${snapshotRows.length} products)`);
 
+  // Daily opportunity rollup — feeds the dashboard "Deal opportunity" chart.
+  // One doc holding the last 30 days of aggregate flip margin on the board.
+  try {
+    const today = new Date().toISOString().slice(0, 10);
+    const totalFlip = Math.round(snapshotRows.reduce((s, p) => s + (p.flipMargin || 0), 0));
+    const buyNow = snapshotRows.filter((p) => p.recommendation === 'BUY NOW').length;
+    const avgDiscount = snapshotRows.length
+      ? Number(
+          (snapshotRows.reduce((s, p) => s + (p.marginPercentage || 0), 0) / snapshotRows.length).toFixed(1)
+        )
+      : 0;
+    const dsRef = db.collection('snapshots').doc('dailyStats');
+    const dsSnap = await dsRef.get();
+    let series =
+      dsSnap.exists && Array.isArray(dsSnap.data().series) ? dsSnap.data().series : [];
+    series = series.filter((d) => d.date !== today);
+    series.push({ date: today, totalFlip, buyNow, count: snapshotRows.length, avgDiscount });
+    series.sort((a, b) => (a.date < b.date ? -1 : 1));
+    series = series.slice(-30);
+    await dsRef.set({ series, updatedAt: now });
+    console.log(`Wrote daily stats (${series.length} days, $${totalFlip} flip on board)`);
+  } catch (e) {
+    console.warn('daily stats write failed:', e.message);
+  }
+
   // Trigger alerts whose condition is now met, and email the owner.
   const alertsSnap = await db.collection('alerts').where('isTriggered', '==', false).get();
   let triggered = 0;
