@@ -51,8 +51,16 @@ export function affiliateUrl(url, source = '') {
   if (s.startsWith('walmart') && process.env.WALMART_AFFILIATE_QS) {
     return appendQs(url, process.env.WALMART_AFFILIATE_QS);
   }
-  if (s === 'aliexpress' && process.env.ALIEXPRESS_AFFILIATE_QS) {
-    return appendQs(url, process.env.ALIEXPRESS_AFFILIATE_QS);
+  if (s === 'aliexpress') {
+    // The Affiliate API already returns a tracked promotion link — don't
+    // double-tag it. Only wrap a plain product URL.
+    const alreadyTracked =
+      /s\.click\.aliexpress\.com/i.test(url) || /[?&]aff_(fcid|platform|trace_key)=/i.test(url);
+    if (alreadyTracked) return url;
+    if (process.env.ALIEXPRESS_AFFILIATE_QS) {
+      return appendQs(url, process.env.ALIEXPRESS_AFFILIATE_QS);
+    }
+    return url;
   }
   if (process.env.GENERIC_AFFILIATE_QS) {
     return appendQs(url, process.env.GENERIC_AFFILIATE_QS);

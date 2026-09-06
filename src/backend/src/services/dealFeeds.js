@@ -8,6 +8,8 @@
  * Feed: https://www.dealnews.com/rss/todays-edition/
  */
 
+import { fetchAliExpress, hasAliExpress } from './aliexpress.js';
+
 const FEED_URL = 'https://www.dealnews.com/rss/todays-edition/';
 const UA =
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36';
@@ -224,15 +226,35 @@ export async function fetchDealNews() {
 }
 
 /**
- * All free feeds combined, de-duplicated by name+price.
+ * All feeds combined, de-duplicated by name+price.
+ *
+ * DealNews + Slickdeals are always on (key-less). AliExpress is added only
+ * when ALIEXPRESS_APP_KEY / _SECRET are set — see services/aliexpress.js.
  */
 export async function fetchAllDeals() {
-  const results = await Promise.allSettled([fetchDealNews(), fetchSlickdeals()]);
+  const jobs = [fetchDealNews(), fetchSlickdeals()];
+
+  if (hasAliExpress()) {
+    const terms = (
+      process.env.ALIEXPRESS_KEYWORDS ||
+      'wireless earbuds,phone case,kitchen gadget,led strip light,smart watch,car accessories'
+    )
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean)
+      .slice(0, 6);
+    for (const t of terms) jobs.push(fetchAliExpress({ keywords: t, pageSize: 10 }));
+  }
+
+  const results = await Promise.allSettled(jobs);
   const merged = [];
   const seen = new Set();
 
   for (const r of results) {
-    if (r.status !== 'fulfilled') continue;
+    if (r.status !== 'fulfilled') {
+      console.warn('Deal feed failed:', r.reason?.message || r.reason);
+      continue;
+    }
     for (const d of r.value) {
       const key = `${d.name.toLowerCase().slice(0, 40)}|${d.current_price}`;
       if (seen.has(key)) continue;

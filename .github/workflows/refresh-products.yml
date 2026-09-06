@@ -47,6 +47,11 @@ jobs:
           # --- Telegram channel broadcast ---
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          # --- AliExpress Affiliate (Portals) API — real AliExpress products ---
+          ALIEXPRESS_APP_KEY: ${{ secrets.ALIEXPRESS_APP_KEY }}
+          ALIEXPRESS_APP_SECRET: ${{ secrets.ALIEXPRESS_APP_SECRET }}
+          ALIEXPRESS_TRACKING_ID: ${{ secrets.ALIEXPRESS_TRACKING_ID }}
+          ALIEXPRESS_KEYWORDS: ${{ secrets.ALIEXPRESS_KEYWORDS }}
           # --- Optional paid data sources ---
           KEEPA_API_KEY: ${{ secrets.KEEPA_API_KEY }}
         run: npm run refresh:firestore

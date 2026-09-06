@@ -51,13 +51,45 @@ Auto-posts every fresh **BUY NOW** deal to a channel - great for reach.
 
 ---
 
-## 4. Real catalog data (paid, optional)
+## 4. Real AliExpress products (free)
 
-The site currently uses free deal feeds (DealNews + Slickdeals). For deep
-Amazon price history / best-seller rank, add a **Keepa** subscription
-(~$50/mo), set `KEEPA_API_KEY`, and extend
+Adds live AliExpress items — real titles, images, prices — with **your**
+promotion links, alongside the DealNews / Slickdeals feeds. The code is
+already wired (`src/backend/src/services/aliexpress.js`); it just needs
+credentials.
+
+1. Go to https://portals.aliexpress.com → join the **Affiliate** program
+   (free, usually approved fast).
+2. In the portal, create a **Tracking ID** (any name, e.g. `ecomplace`).
+3. Open the **API / Open Platform** section, create an app → copy the
+   **App Key** and **App Secret**.
+4. Add these GitHub Actions secrets:
+
+   | Secret | Value |
+   |---|---|
+   | `ALIEXPRESS_APP_KEY` | your app key |
+   | `ALIEXPRESS_APP_SECRET` | your app secret |
+   | `ALIEXPRESS_TRACKING_ID` | the tracking id from step 2 |
+   | `ALIEXPRESS_KEYWORDS` | *(optional)* comma-separated search terms, e.g. `wireless earbuds,phone case,led strip light` |
+
+5. Run the workflow once. New AliExpress rows appear with
+   `source: "aliexpress"` and their `url` is your affiliate promotion link.
+
+If a key is wrong the refresh logs `AliExpress API: <code> <msg>` and simply
+skips AliExpress — the rest of the feed is unaffected.
+
+---
+
+## 5. Deep Amazon data (paid, optional)
+
+For Amazon price history / best-seller rank at scale, add a **Keepa**
+subscription (~$50/mo), set `KEEPA_API_KEY`, and extend
 `src/backend/src/services/` with a Keepa client that `refresh-firestore.js`
 merges alongside `fetchAllDeals()`.
+
+> **Alibaba.com (B2B wholesale)** has no free or self-serve API — it needs a
+> verified paid membership plus app review — so it is not integrated.
+> AliExpress (section 4) is the practical wholesale-style source.
 
 ---
 
