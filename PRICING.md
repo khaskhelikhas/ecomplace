@@ -4,24 +4,37 @@
 
 Defined in `src/frontend/src/lib/plans.js` (change prices / limits there).
 
-| Plan | Price | Alerts | Sourcing | CSV export | Own affiliate ids | API |
-|---|---|---|---|---|---|---|
-| **Free** | $0 | 3 | 10 | — | — | — |
-| **Pro** | $9 / mo | ∞ | ∞ | ✓ | ✓ | — |
-| **Business** | $29 / mo | ∞ | ∞ | ✓ | ✓ | ✓ (5 seats) |
+| Plan | Monthly | Annual | Alerts | Sourcing | CSV | Affiliate ids | ASIN analyzer | Bulk CSV | API |
+|---|---|---|---|---|---|---|---|---|---|
+| **Free** | $0 | — | 3 | 10 | — | — | — | — | — |
+| **Starter** | $19 | $190 | 25 | ∞ | ✓ | ✓ | — | — | — |
+| **Pro** | $49 | $490 | ∞ | ∞ | ✓ | ✓ | ✓ | ✓ | — |
+| **Agency** | $99 | $990 | ∞ | ∞ | ✓ | ✓ | ✓ | ✓ | ✓ (5 seats, white-label) |
+
+Annual ≈ 2 months free. A **founding offer** banner ("first 100 members lock
+in these prices") shows on `/upgrade` — toggle with `FOUNDING.active` in
+`plans.js`.
 
 The user's plan lives in Firestore at `users/{uid}.subscriptionPlan`
-(`"free" | "pro" | "business"`). The frontend reads it via `authStore` and
-gates features with `can()` / `limitOf()` from `plans.js`.
+(`"free" | "starter" | "pro" | "agency"`). The frontend reads it via
+`authStore` and gates features with `can()` / `limitOf()` from `plans.js`.
+
+### Comparable tools (why these prices)
+
+Keepa €19 · SellerAmp $20 · RevSeller ~$12 · BuyBotPro ~$35 · Jungle Scout
+$49 · Helium 10 $39-99 · Tactical Arbitrage $59-89. Resellers pay because one
+good flip covers months of fee.
 
 ---
 
 ## Phase 1 — manual (works today, $0 infra)
 
-1. **Create Stripe Payment Links** (Stripe dashboard → Payment links):
-   - one recurring $9/mo link → paste into `PLANS.pro.checkoutUrl`
-   - one recurring $29/mo link → `PLANS.business.checkoutUrl`
-   - enable "let customers adjust quantity" off; collect email on
+1. **Create Stripe Payment Links** (Stripe dashboard → Payment links) — 6 links,
+   a monthly + an annual for each paid plan, and paste them into `plans.js`:
+   - `PLANS.starter.checkoutUrl` / `.checkoutUrlYear`  ($19 / $190)
+   - `PLANS.pro.checkoutUrl` / `.checkoutUrlYear`      ($49 / $490)
+   - `PLANS.agency.checkoutUrl` / `.checkoutUrlYear`   ($99 / $990)
+   - quantity adjust off; collect email on
 2. The **/upgrade** page sends the user to that link with
    `?client_reference_id=<uid>&prefilled_email=<email>` so you can see who paid.
 3. When Stripe emails you a successful payment, open **/admin**, find the

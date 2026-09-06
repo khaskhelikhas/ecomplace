@@ -18,6 +18,7 @@ const Sourcing = lazy(() => import('./pages/Sourcing'))
 const Settings = lazy(() => import('./pages/Settings'))
 const Upgrade = lazy(() => import('./pages/Upgrade'))
 const Admin = lazy(() => import('./pages/Admin'))
+const Analyzer = lazy(() => import('./pages/Analyzer'))
 
 const Spinner = () => (
   <div className="max-w-7xl mx-auto px-4 py-16 text-center text-ink-400 text-sm">Loading…</div>
@@ -53,6 +54,7 @@ function App() {
               <Route path="/products/:id" element={<ProductDetail />} />
               <Route path="/alerts" element={<Alerts />} />
               <Route path="/sourcing" element={<Sourcing />} />
+              <Route path="/analyzer" element={<Analyzer />} />
               <Route path="/settings" element={<Settings />} />
               <Route path="/upgrade" element={<Upgrade />} />
               <Route path="/admin" element={<Admin />} />

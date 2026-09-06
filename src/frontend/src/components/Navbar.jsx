@@ -45,6 +45,9 @@ export default function Navbar() {
             <NavLink to="/sourcing" className={link}>
               Sourcing
             </NavLink>
+            <NavLink to="/analyzer" className={link}>
+              Analyzer
+            </NavLink>
             <NavLink to="/alerts" className={link}>
               Alerts
               {alertCount > 0 && (
@@ -79,7 +82,7 @@ export default function Navbar() {
                     </span>
                   </div>
                   <div className="sm:hidden border-b border-slate-100 py-1">
-                    {['/', '/products', '/sourcing', '/alerts'].map((to, i) => (
+                    {['/', '/products', '/sourcing', '/analyzer', '/alerts'].map((to, i) => (
                       <NavLink
                         key={to}
                         to={to}
@@ -87,7 +90,7 @@ export default function Navbar() {
                         className="block px-4 py-2 text-sm hover:bg-slate-50"
                         onClick={() => setOpen(false)}
                       >
-                        {['Dashboard', 'Deals', 'Sourcing', 'Alerts'][i]}
+                        {['Dashboard', 'Deals', 'Sourcing', 'Analyzer', 'Alerts'][i]}
                       </NavLink>
                     ))}
                   </div>

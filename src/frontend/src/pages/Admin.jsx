@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import { Navigate } from 'react-router-dom'
 import { useAuthStore } from '../store/authStore'
-import { isAdmin, PLANS } from '../lib/plans'
+import { isAdmin, PLANS, PLAN_ORDER } from '../lib/plans'
 import { listUsers, setUserPlan, getSystemStatus } from '../lib/data'
 
 export default function Admin() {
@@ -54,12 +54,15 @@ export default function Admin() {
   }, [users, q])
 
   const counts = useMemo(() => {
-    const c = { free: 0, pro: 0, business: 0 }
-    users.forEach((u) => (c[u.subscriptionPlan || 'free'] = (c[u.subscriptionPlan || 'free'] || 0) + 1))
+    const c = Object.fromEntries(PLAN_ORDER.map((k) => [k, 0]))
+    users.forEach((u) => {
+      const k = u.subscriptionPlan || 'free'
+      c[k] = (c[k] || 0) + 1
+    })
     return c
   }, [users])
 
-  const mrr = counts.pro * PLANS.pro.price + counts.business * PLANS.business.price
+  const mrr = PLAN_ORDER.reduce((sum, k) => sum + counts[k] * (PLANS[k].price || 0), 0)
 
   const changePlan = async (uid, plan) => {
     setSavingId(uid)
@@ -82,12 +85,13 @@ export default function Admin() {
       <p className="text-ink-500 text-sm mb-6">Users, plans and system health.</p>
 
       {/* system health */}
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
+      <div className="grid grid-cols-2 lg:grid-cols-6 gap-4 mb-6">
         <Stat label="Total users" value={users.length} />
         <Stat label="Free" value={counts.free} />
+        <Stat label="Starter" value={counts.starter} accent="text-brand-600" />
         <Stat label="Pro" value={counts.pro} accent="text-brand-600" />
-        <Stat label="Business" value={counts.business} accent="text-brand-600" />
-        <Stat label="MRR (manual)" value={`$${mrr}`} accent="text-emerald-600" />
+        <Stat label="Agency" value={counts.agency} accent="text-brand-600" />
+        <Stat label="MRR" value={`$${mrr}`} accent="text-emerald-600" />
       </div>
 
       <div className="card p-4 mb-6 text-sm flex flex-wrap gap-x-8 gap-y-2">
@@ -138,9 +142,11 @@ export default function Admin() {
                       disabled={savingId === u.id}
                       onChange={(e) => changePlan(u.id, e.target.value)}
                     >
-                      <option value="free">Free</option>
-                      <option value="pro">Pro</option>
-                      <option value="business">Business</option>
+                      {PLAN_ORDER.map((k) => (
+                        <option key={k} value={k}>
+                          {PLANS[k].name}
+                        </option>
+                      ))}
                     </select>
                   </td>
                 </tr>
