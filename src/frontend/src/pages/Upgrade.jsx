@@ -56,8 +56,15 @@ export default function Upgrade() {
           const isCurrent = key === current
           const priceLabel =
             key === 'free' ? '$0' : annual ? `$${p.priceYear} / yr` : `$${p.price} / mo`
-          const url = annual ? p.checkoutUrlYear : p.checkoutUrl
-          const hostedReady = PAYMENT.hostedCheckout && url && !url.includes('REPLACE')
+          const baseUrl = annual ? p.checkoutUrlYear : p.checkoutUrl
+          const hostedReady =
+            PAYMENT.hostedCheckout && baseUrl && !baseUrl.includes('REPLACE') && !baseUrl.includes('YOURSTORE')
+          // Lemon Squeezy: pass our uid + email so the webhook can match the user.
+          const url = hostedReady
+            ? `${baseUrl}?checkout[custom][uid]=${user?.id}&checkout[email]=${encodeURIComponent(
+                user?.email || ''
+              )}`
+            : baseUrl
 
           return (
             <div
@@ -90,12 +97,17 @@ export default function Upgrade() {
                 ) : key === 'free' ? (
                   <div className="btn-ghost w-full cursor-default text-ink-400">—</div>
                 ) : hostedReady ? (
-                  <a
-                    href={`${url}?client_reference_id=${user?.id}&prefilled_email=${encodeURIComponent(user?.email || '')}`}
-                    className="btn-primary w-full"
-                  >
-                    Choose {p.name}
-                  </a>
+                  <>
+                    <a href={url} className="btn-primary w-full">
+                      Pay by card · {p.name}
+                    </a>
+                    <button
+                      onClick={() => setChosen(key)}
+                      className="text-xs text-ink-400 hover:text-ink-600 w-full mt-2"
+                    >
+                      or request another payment method
+                    </button>
+                  </>
                 ) : (
                   <button onClick={() => setChosen(key)} className="btn-primary w-full">
                     Choose {p.name}

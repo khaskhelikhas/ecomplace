@@ -35,18 +35,28 @@ method (Wise / Payoneer / JazzCash / Easypaisa / crypto — edit these in
 You see it in **/admin → Pending upgrade requests** and hit **Approve**,
 which sets their plan and resolves the request. Good for the first customers.
 
-## Phase 1 — hosted checkout (recommended next)
+## Phase 1 — card payments for international clients (Lemon Squeezy)
 
-Stripe is not available to Pakistani businesses. Use a **Merchant of Record**
-that is and that pays out to Pakistan (via Payoneer / wire):
+Stripe is not available to Pakistani businesses. **Lemon Squeezy** is a
+Merchant of Record: it takes global cards, handles tax/VAT, and pays out to
+Pakistan via Payoneer or wire.
 
-- **Lemon Squeezy** (now part of Stripe) — simplest, supports Pakistan payouts
-- **Paddle** — handles global cards + tax, Payoneer/wire payouts
+**Steps**
+1. Create a Lemon Squeezy store + one product per plan, each with a Monthly
+   and an Annual variant ($19/$190, $49/$490, $99/$990).
+2. Paste each variant's Buy URL into `plans.js` (`checkoutUrl` /
+   `checkoutUrlYear`), set `PAYMENT.hostedCheckout = true`, and fill
+   `LS_VARIANT_TO_PLAN`. Redeploy the frontend.
+3. Deploy the webhook so plans activate automatically:
+   **`payments/lemonsqueezy-worker.js`** — a Cloudflare Worker (free, no
+   card to sign up). Full setup steps are in the file header. It verifies
+   the LS signature and writes `users/{uid}.subscriptionPlan` via a Firebase
+   service account.
 
-Create the products/prices there, get the checkout URLs, put them in
-`plans.js` (`checkoutUrl` / `checkoutUrlYear`) and set
-`PAYMENT.hostedCheckout = true`. Their webhook then flips the plan
-automatically (same idea as the Stripe extension below).
+The `/upgrade` "Pay by card" button sends the buyer to LS with
+`checkout[custom][uid]` set, so the webhook knows which account to upgrade.
+A "request another payment method" link stays available for anyone whose
+card is declined.
 
 ## Phase 1b — Stripe (only if you can get a Stripe account)
 

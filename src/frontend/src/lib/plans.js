@@ -38,8 +38,10 @@ export const PLANS = {
     name: 'Starter',
     price: 19,
     priceYear: 190, // ~2 months free
-    checkoutUrl: 'https://buy.stripe.com/REPLACE_STARTER_MONTHLY',
-    checkoutUrlYear: 'https://buy.stripe.com/REPLACE_STARTER_ANNUAL',
+    // Lemon Squeezy checkout URLs (Merchant of Record — takes global cards,
+    // pays out to Pakistan). Paste after you create the products.
+    checkoutUrl: 'https://YOURSTORE.lemonsqueezy.com/buy/REPLACE-STARTER-MONTHLY',
+    checkoutUrlYear: 'https://YOURSTORE.lemonsqueezy.com/buy/REPLACE-STARTER-ANNUAL',
     limits: { alerts: 25, sourcing: Infinity, analyzer: 50 },
     features: F({ csvExport: true, affiliateTags: true, categoryAlerts: true }),
     blurb: 'Unlimited sourcing, CSV export, your own affiliate ids, 25 alerts.',
@@ -49,8 +51,8 @@ export const PLANS = {
     name: 'Pro',
     price: 49,
     priceYear: 490,
-    checkoutUrl: 'https://buy.stripe.com/REPLACE_PRO_MONTHLY',
-    checkoutUrlYear: 'https://buy.stripe.com/REPLACE_PRO_ANNUAL',
+    checkoutUrl: 'https://YOURSTORE.lemonsqueezy.com/buy/REPLACE-PRO-MONTHLY',
+    checkoutUrlYear: 'https://YOURSTORE.lemonsqueezy.com/buy/REPLACE-PRO-ANNUAL',
     limits: { alerts: Infinity, sourcing: Infinity, analyzer: Infinity },
     features: F({
       csvExport: true,
@@ -66,8 +68,8 @@ export const PLANS = {
     name: 'Agency',
     price: 99,
     priceYear: 990,
-    checkoutUrl: 'https://buy.stripe.com/REPLACE_AGENCY_MONTHLY',
-    checkoutUrlYear: 'https://buy.stripe.com/REPLACE_AGENCY_ANNUAL',
+    checkoutUrl: 'https://YOURSTORE.lemonsqueezy.com/buy/REPLACE-AGENCY-MONTHLY',
+    checkoutUrlYear: 'https://YOURSTORE.lemonsqueezy.com/buy/REPLACE-AGENCY-ANNUAL',
     limits: { alerts: Infinity, sourcing: Infinity, analyzer: Infinity },
     features: F({
       csvExport: true,
@@ -80,6 +82,19 @@ export const PLANS = {
     }),
     blurb: 'Pro + API access, 5 team seats, white-label, priority support.',
   },
+}
+
+/**
+ * Map a Lemon Squeezy variant id -> our plan key. Fill after you create
+ * the products; used by the payments webhook worker.
+ */
+export const LS_VARIANT_TO_PLAN = {
+  // '123456': 'starter',
+  // '123457': 'starter',   // annual
+  // '123458': 'pro',
+  // '123459': 'pro',
+  // '123460': 'agency',
+  // '123461': 'agency',
 }
 
 export const PLAN_ORDER = ['free', 'starter', 'pro', 'agency']
