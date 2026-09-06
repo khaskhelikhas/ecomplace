@@ -281,6 +281,26 @@ export async function resolvePaymentRequest(id, status) {
   })
 }
 
+/** Append an entry to the admin audit trail. */
+export async function adminLog(action, meta = {}) {
+  try {
+    await addDoc(collection(db, 'adminLog'), {
+      action,
+      meta,
+      at: serverTimestamp(),
+    })
+  } catch (e) {
+    console.warn('adminLog failed', e)
+  }
+}
+
+export async function recentAdminLog(n = 25) {
+  const snap = await getDocs(
+    query(collection(db, 'adminLog'), orderBy('at', 'desc'), fbLimit(n))
+  )
+  return snap.docs.map((d) => ({ id: d.id, ...d.data() }))
+}
+
 export async function getSystemStatus() {
   const [snap, status] = await Promise.all([
     getDoc(doc(db, 'snapshots', 'latest')),

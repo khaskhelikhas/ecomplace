@@ -8,16 +8,42 @@ import {
   getSystemStatus,
   listPaymentRequests,
   resolvePaymentRequest,
+  adminLog,
+  recentAdminLog,
 } from '../lib/data'
 
-const UNLOCK_KEY = 'ecp_admin_unlocked'
+const UNLOCK_KEY = 'ecp_admin_unlocked_at'
+const IDLE_MS = 10 * 60 * 1000 // re-lock after 10 min idle
+
+const freshUnlock = () => {
+  const t = Number(sessionStorage.getItem(UNLOCK_KEY) || 0)
+  return t && Date.now() - t < IDLE_MS
+}
 
 export default function Admin() {
   const { user, reauth } = useAuthStore()
   const admin = isAdmin(user)
-  const [unlocked, setUnlocked] = useState(
-    () => sessionStorage.getItem(UNLOCK_KEY) === '1'
-  )
+  const [unlocked, setUnlocked] = useState(freshUnlock)
+
+  // Auto re-lock on idle.
+  useEffect(() => {
+    if (!unlocked) return
+    const bump = () => sessionStorage.setItem(UNLOCK_KEY, String(Date.now()))
+    const check = () => {
+      if (!freshUnlock()) {
+        sessionStorage.removeItem(UNLOCK_KEY)
+        setUnlocked(false)
+      }
+    }
+    const id = setInterval(check, 30_000)
+    window.addEventListener('click', bump)
+    window.addEventListener('keydown', bump)
+    return () => {
+      clearInterval(id)
+      window.removeEventListener('click', bump)
+      window.removeEventListener('keydown', bump)
+    }
+  }, [unlocked])
 
   if (!admin) return <Navigate to="/" />
 
@@ -26,8 +52,9 @@ export default function Admin() {
       <StepUp
         onOk={async (pw) => {
           await reauth(pw)
-          sessionStorage.setItem(UNLOCK_KEY, '1')
+          sessionStorage.setItem(UNLOCK_KEY, String(Date.now()))
           setUnlocked(true)
+          adminLog('unlock', { email: user?.email })
         }}
       />
     )
@@ -89,19 +116,22 @@ function AdminPanel({ user }) {
   const [users, setUsers] = useState([])
   const [status, setStatus] = useState(null)
   const [requests, setRequests] = useState([])
+  const [log, setLog] = useState([])
   const [loading, setLoading] = useState(true)
   const [q, setQ] = useState('')
   const [savingId, setSavingId] = useState(null)
 
   const reload = async () => {
-    const [u, s, r] = await Promise.all([
+    const [u, s, r, l] = await Promise.all([
       listUsers(),
       getSystemStatus(),
       listPaymentRequests().catch(() => []),
+      recentAdminLog().catch(() => []),
     ])
     setUsers(u)
     setStatus(s)
     setRequests(r)
+    setLog(l)
   }
 
   useEffect(() => {
@@ -114,12 +144,16 @@ function AdminPanel({ user }) {
   const approve = async (req) => {
     await setUserPlan(req.userId, req.plan)
     await resolvePaymentRequest(req.id, 'approved')
+    await adminLog('approve_request', { email: req.email, plan: req.plan, cycle: req.cycle })
     setUsers((us) => us.map((u) => (u.id === req.userId ? { ...u, subscriptionPlan: req.plan } : u)))
     setRequests((rs) => rs.map((r) => (r.id === req.id ? { ...r, status: 'approved' } : r)))
+    recentAdminLog().then(setLog).catch(() => {})
   }
   const reject = async (req) => {
     await resolvePaymentRequest(req.id, 'rejected')
+    await adminLog('reject_request', { email: req.email, plan: req.plan })
     setRequests((rs) => rs.map((r) => (r.id === req.id ? { ...r, status: 'rejected' } : r)))
+    recentAdminLog().then(setLog).catch(() => {})
   }
 
   const fmt = (v) => {
@@ -161,8 +195,11 @@ function AdminPanel({ user }) {
   const changePlan = async (uid, plan) => {
     setSavingId(uid)
     try {
+      const before = users.find((u) => u.id === uid)?.subscriptionPlan || 'free'
       await setUserPlan(uid, plan)
+      await adminLog('set_plan', { email: before && users.find((u) => u.id === uid)?.email, from: before, to: plan })
       setUsers((us) => us.map((u) => (u.id === uid ? { ...u, subscriptionPlan: plan } : u)))
+      recentAdminLog().then(setLog).catch(() => {})
     } catch (e) {
       console.error(e)
       alert('Could not update plan (are you an admin?)')
@@ -291,9 +328,33 @@ function AdminPanel({ user }) {
         </div>
       </div>
 
+      {/* audit trail */}
+      <div className="card p-4 mt-6">
+        <h2 className="font-bold mb-3">Recent admin activity</h2>
+        {log.length === 0 ? (
+          <p className="text-ink-400 text-sm">No entries yet.</p>
+        ) : (
+          <div className="space-y-1 text-sm">
+            {log.map((e) => (
+              <div key={e.id} className="flex justify-between border-b border-slate-100 py-1.5">
+                <span>
+                  <b>{e.action}</b>{' '}
+                  <span className="text-ink-500">
+                    {Object.entries(e.meta || {})
+                      .map(([k, v]) => `${k}: ${v}`)
+                      .join(' · ')}
+                  </span>
+                </span>
+                <span className="text-ink-400 whitespace-nowrap">{fmt(e.at)}</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
       <p className="text-xs text-ink-400 mt-4">
-        "MRR (manual)" counts plans you set here. Once Stripe is connected it
-        reflects real subscriptions. See <b>PRICING.md</b>.
+        MRR counts plans set here / by the payments webhook. Session auto-locks
+        after 10 min idle. See <b>PRICING.md</b>.
       </p>
     </div>
   )

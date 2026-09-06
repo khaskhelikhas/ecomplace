@@ -47,6 +47,12 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // Admin audit trail — admin-only, append-only.
+    match /adminLog/{entryId} {
+      allow read, list, create: if isAdmin();
+      allow update, delete: if false;
+    }
+
     // Manual upgrade requests: a user creates & reads their own; an admin
     // reads all and resolves them. Users cannot change status.
     match /paymentRequests/{reqId} {

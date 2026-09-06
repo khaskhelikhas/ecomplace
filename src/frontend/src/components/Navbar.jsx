@@ -116,6 +116,20 @@ export default function Navbar() {
                   >
                     Settings
                   </NavLink>
+                  {admin && (
+                    <NavLink
+                      to="/admin"
+                      className="flex items-center justify-between px-4 py-2.5 text-sm hover:bg-slate-50 text-brand-600 font-medium border-t border-slate-100"
+                      onClick={() => setOpen(false)}
+                    >
+                      Admin panel
+                      {pendingReqs > 0 && (
+                        <span className="inline-grid place-items-center min-w-[18px] h-[18px] px-1 rounded-full bg-amber-500 text-white text-[11px] font-bold">
+                          {pendingReqs}
+                        </span>
+                      )}
+                    </NavLink>
+                  )}
                   <button
                     onClick={handleLogout}
                     className="w-full text-left px-4 py-2.5 text-sm text-rose-600 hover:bg-rose-50"
