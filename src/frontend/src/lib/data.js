@@ -230,6 +230,45 @@ export async function setUserPlan(uid, plan) {
   })
 }
 
+/* ---- manual payment requests ---- */
+
+export async function createPaymentRequest({ userId, email, plan, cycle, method, note }) {
+  return addDoc(collection(db, 'paymentRequests'), {
+    userId,
+    email,
+    plan,
+    cycle: cycle || 'monthly',
+    method: method || '',
+    note: note || '',
+    status: 'pending',
+    createdAt: serverTimestamp(),
+  })
+}
+
+export async function myPaymentRequests(userId) {
+  if (!userId) return []
+  const snap = await getDocs(
+    query(collection(db, 'paymentRequests'), where('userId', '==', userId))
+  )
+  return snap.docs
+    .map((d) => ({ id: d.id, ...d.data() }))
+    .sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0))
+}
+
+export async function listPaymentRequests() {
+  const snap = await getDocs(
+    query(collection(db, 'paymentRequests'), orderBy('createdAt', 'desc'), fbLimit(200))
+  )
+  return snap.docs.map((d) => ({ id: d.id, ...d.data() }))
+}
+
+export async function resolvePaymentRequest(id, status) {
+  return updateDoc(doc(db, 'paymentRequests', id), {
+    status, // 'approved' | 'rejected'
+    resolvedAt: serverTimestamp(),
+  })
+}
+
 export async function getSystemStatus() {
   const [snap, status] = await Promise.all([
     getDoc(doc(db, 'snapshots', 'latest')),

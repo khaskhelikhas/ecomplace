@@ -2,7 +2,13 @@ import { useState, useEffect, useMemo } from 'react'
 import { Navigate } from 'react-router-dom'
 import { useAuthStore } from '../store/authStore'
 import { isAdmin, PLANS, PLAN_ORDER } from '../lib/plans'
-import { listUsers, setUserPlan, getSystemStatus } from '../lib/data'
+import {
+  listUsers,
+  setUserPlan,
+  getSystemStatus,
+  listPaymentRequests,
+  resolvePaymentRequest,
+} from '../lib/data'
 
 export default function Admin() {
   const { user } = useAuthStore()
@@ -10,23 +16,39 @@ export default function Admin() {
 
   const [users, setUsers] = useState([])
   const [status, setStatus] = useState(null)
+  const [requests, setRequests] = useState([])
   const [loading, setLoading] = useState(true)
   const [q, setQ] = useState('')
   const [savingId, setSavingId] = useState(null)
 
+  const reload = async () => {
+    const [u, s, r] = await Promise.all([
+      listUsers(),
+      getSystemStatus(),
+      listPaymentRequests().catch(() => []),
+    ])
+    setUsers(u)
+    setStatus(s)
+    setRequests(r)
+  }
+
   useEffect(() => {
     if (!admin) return
-    ;(async () => {
-      try {
-        const [u, s] = await Promise.all([listUsers(), getSystemStatus()])
-        setUsers(u)
-        setStatus(s)
-      } catch (e) {
-        console.error(e)
-      }
-      setLoading(false)
-    })()
+    reload()
+      .catch((e) => console.error(e))
+      .finally(() => setLoading(false))
   }, [admin])
+
+  const approve = async (req) => {
+    await setUserPlan(req.userId, req.plan)
+    await resolvePaymentRequest(req.id, 'approved')
+    setUsers((us) => us.map((u) => (u.id === req.userId ? { ...u, subscriptionPlan: req.plan } : u)))
+    setRequests((rs) => rs.map((r) => (r.id === req.id ? { ...r, status: 'approved' } : r)))
+  }
+  const reject = async (req) => {
+    await resolvePaymentRequest(req.id, 'rejected')
+    setRequests((rs) => rs.map((r) => (r.id === req.id ? { ...r, status: 'rejected' } : r)))
+  }
 
   const fmt = (v) => {
     try {
@@ -110,6 +132,46 @@ export default function Admin() {
           {status?.refresh?.error ? ` — ${status.refresh.error}` : ''}
         </span>
       </div>
+
+      {/* payment requests */}
+      {requests.filter((r) => r.status === 'pending').length > 0 && (
+        <div className="card p-4 mb-6 border-amber-200">
+          <h2 className="font-bold mb-3">
+            Pending upgrade requests ({requests.filter((r) => r.status === 'pending').length})
+          </h2>
+          <div className="space-y-2">
+            {requests
+              .filter((r) => r.status === 'pending')
+              .map((r) => (
+                <div
+                  key={r.id}
+                  className="flex flex-wrap items-center justify-between gap-3 border border-slate-200 rounded-lg p-3 text-sm"
+                >
+                  <div className="min-w-0">
+                    <b>{r.email}</b> → <b className="capitalize">{r.plan}</b> ({r.cycle}) ·{' '}
+                    {r.method}
+                    {r.note ? <span className="text-ink-500"> — “{r.note}”</span> : null}
+                    <span className="text-ink-400"> · {fmt(r.createdAt)}</span>
+                  </div>
+                  <div className="flex gap-2 shrink-0">
+                    <button
+                      onClick={() => approve(r)}
+                      className="text-xs bg-emerald-600 text-white px-3 py-1.5 rounded-lg font-semibold"
+                    >
+                      Approve
+                    </button>
+                    <button
+                      onClick={() => reject(r)}
+                      className="text-xs border border-slate-300 px-3 py-1.5 rounded-lg"
+                    >
+                      Reject
+                    </button>
+                  </div>
+                </div>
+              ))}
+          </div>
+        </div>
+      )}
 
       {/* users */}
       <div className="card p-4">

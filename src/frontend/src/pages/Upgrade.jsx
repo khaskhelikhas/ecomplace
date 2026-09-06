@@ -1,11 +1,21 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useAuthStore } from '../store/authStore'
-import { PLANS, PLAN_ORDER, FOUNDING, planOf } from '../lib/plans'
+import { PLANS, PLAN_ORDER, FOUNDING, PAYMENT, planOf } from '../lib/plans'
+import { createPaymentRequest, myPaymentRequests } from '../lib/data'
+import { track } from '../lib/firebase'
 
 export default function Upgrade() {
   const { user } = useAuthStore()
   const current = user?.subscriptionPlan || 'free'
   const [annual, setAnnual] = useState(false)
+  const [chosen, setChosen] = useState(null) // plan key when requesting manually
+  const [reqs, setReqs] = useState([])
+
+  useEffect(() => {
+    if (user?.id) myPaymentRequests(user.id).then(setReqs).catch(() => {})
+  }, [user?.id])
+
+  const pending = reqs.find((r) => r.status === 'pending')
 
   return (
     <div className="max-w-6xl mx-auto px-4 py-8">
@@ -20,15 +30,20 @@ export default function Upgrade() {
         </p>
       )}
 
+      {pending && (
+        <p className="text-center text-sm bg-brand-50 border border-brand-200 text-brand-700 rounded-lg px-4 py-2 max-w-xl mx-auto mt-3">
+          ⏳ Your request for <b className="capitalize">{pending.plan}</b> ({pending.cycle}) is
+          pending — it activates once we confirm payment.
+        </p>
+      )}
+
       <div className="flex items-center justify-center gap-3 mt-6 mb-8 text-sm">
         <span className={!annual ? 'font-semibold' : 'text-ink-400'}>Monthly</span>
         <button
           onClick={() => setAnnual((v) => !v)}
           className={`w-12 h-6 rounded-full p-0.5 transition ${annual ? 'bg-brand-600' : 'bg-slate-300'}`}
         >
-          <span
-            className={`block w-5 h-5 bg-white rounded-full transition ${annual ? 'translate-x-6' : ''}`}
-          />
+          <span className={`block w-5 h-5 bg-white rounded-full transition ${annual ? 'translate-x-6' : ''}`} />
         </button>
         <span className={annual ? 'font-semibold' : 'text-ink-400'}>
           Annual <span className="text-emerald-600">· 2 months free</span>
@@ -39,11 +54,10 @@ export default function Upgrade() {
         {PLAN_ORDER.map((key) => {
           const p = PLANS[key]
           const isCurrent = key === current
-          const priceNum = annual ? p.priceYear : p.price
           const priceLabel =
             key === 'free' ? '$0' : annual ? `$${p.priceYear} / yr` : `$${p.price} / mo`
           const url = annual ? p.checkoutUrlYear : p.checkoutUrl
-          const ready = url && !url.includes('REPLACE')
+          const hostedReady = PAYMENT.hostedCheckout && url && !url.includes('REPLACE')
 
           return (
             <div
@@ -60,12 +74,8 @@ export default function Upgrade() {
               <p className="text-sm text-ink-500 mt-2 min-h-[3.5rem]">{p.blurb}</p>
 
               <ul className="text-sm space-y-1.5 mt-4 mb-6">
-                <Li ok>
-                  {p.limits.alerts === Infinity ? 'Unlimited' : p.limits.alerts} price alerts
-                </Li>
-                <Li ok>
-                  {p.limits.sourcing === Infinity ? 'Unlimited' : p.limits.sourcing} sourcing items
-                </Li>
+                <Li ok>{p.limits.alerts === Infinity ? 'Unlimited' : p.limits.alerts} price alerts</Li>
+                <Li ok>{p.limits.sourcing === Infinity ? 'Unlimited' : p.limits.sourcing} sourcing items</Li>
                 <Li ok={p.features.csvExport}>CSV export</Li>
                 <Li ok={p.features.affiliateTags}>Your own affiliate ids</Li>
                 <Li ok={p.features.asinAnalyzer}>ASIN / URL analyzer</Li>
@@ -79,19 +89,17 @@ export default function Upgrade() {
                   <div className="btn-ghost w-full cursor-default">Current plan</div>
                 ) : key === 'free' ? (
                   <div className="btn-ghost w-full cursor-default text-ink-400">—</div>
-                ) : (
+                ) : hostedReady ? (
                   <a
-                    href={
-                      ready
-                        ? `${url}?client_reference_id=${user?.id}&prefilled_email=${encodeURIComponent(
-                            user?.email || ''
-                          )}`
-                        : undefined
-                    }
-                    className={`btn-primary w-full ${!ready ? 'opacity-50 pointer-events-none' : ''}`}
+                    href={`${url}?client_reference_id=${user?.id}&prefilled_email=${encodeURIComponent(user?.email || '')}`}
+                    className="btn-primary w-full"
                   >
-                    {ready ? `Choose ${p.name}` : 'Coming soon'}
+                    Choose {p.name}
                   </a>
+                ) : (
+                  <button onClick={() => setChosen(key)} className="btn-primary w-full">
+                    Choose {p.name}
+                  </button>
                 )}
               </div>
             </div>
@@ -99,10 +107,109 @@ export default function Upgrade() {
         })}
       </div>
 
+      {chosen && (
+        <RequestPanel
+          planKey={chosen}
+          cycle={annual ? 'annual' : 'monthly'}
+          user={user}
+          onClose={() => setChosen(null)}
+          onDone={() => {
+            setChosen(null)
+            if (user?.id) myPaymentRequests(user.id).then(setReqs)
+          }}
+        />
+      )}
+
       <p className="text-xs text-ink-400 text-center mt-8">
-        Payments handled by Stripe. Your plan unlocks automatically once payment
-        is confirmed (see PRICING.md for setup).
+        {PAYMENT.hostedCheckout
+          ? 'Payments handled by our checkout provider; your plan unlocks automatically.'
+          : 'Manual activation: submit a request, pay by any listed method, reply with the receipt.'}
       </p>
+    </div>
+  )
+}
+
+function RequestPanel({ planKey, cycle, user, onClose, onDone }) {
+  const p = PLANS[planKey]
+  const price = cycle === 'annual' ? p.priceYear : p.price
+  const [method, setMethod] = useState(PAYMENT.methods[0]?.label || '')
+  const [note, setNote] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [sent, setSent] = useState(false)
+
+  const submit = async () => {
+    setBusy(true)
+    try {
+      await createPaymentRequest({
+        userId: user.id,
+        email: user.email,
+        plan: planKey,
+        cycle,
+        method,
+        note,
+      })
+      track('upgrade_request', { plan: planKey, cycle })
+      setSent(true)
+    } catch (e) {
+      console.error(e)
+      alert('Could not submit the request.')
+    }
+    setBusy(false)
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/40 grid place-items-center p-4 z-50" onClick={onClose}>
+      <div className="card p-6 max-w-md w-full" onClick={(e) => e.stopPropagation()}>
+        {sent ? (
+          <>
+            <h3 className="font-bold text-lg">Request received ✅</h3>
+            <p className="text-sm text-ink-600 mt-2">
+              Pay <b>${price}</b> for <b className="capitalize">{p.name}</b> ({cycle}) by your
+              chosen method, then reply to our email with the receipt. We activate within 24h.
+            </p>
+            <button onClick={onDone} className="btn-primary w-full mt-5">
+              Done
+            </button>
+          </>
+        ) : (
+          <>
+            <h3 className="font-bold text-lg">
+              Upgrade to {p.name} — ${price}/{cycle === 'annual' ? 'yr' : 'mo'}
+            </h3>
+            <p className="text-xs text-ink-500 mt-1 mb-4">{PAYMENT.note}</p>
+
+            <label className="label">Payment method</label>
+            <select className="field mb-3" value={method} onChange={(e) => setMethod(e.target.value)}>
+              {PAYMENT.methods.map((m) => (
+                <option key={m.label} value={m.label}>
+                  {m.label}
+                </option>
+              ))}
+            </select>
+            <p className="text-xs text-ink-500 -mt-2 mb-3">
+              {PAYMENT.methods.find((m) => m.label === method)?.detail}
+            </p>
+
+            <label className="label">Note (optional)</label>
+            <textarea
+              className="field mb-4"
+              rows={2}
+              placeholder="Anything we should know…"
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+            />
+
+            <div className="flex gap-2">
+              <button onClick={submit} disabled={busy} className="btn-primary flex-1">
+                {busy ? 'Sending…' : 'Submit request'}
+              </button>
+              <button onClick={onClose} className="btn-ghost">
+                Cancel
+              </button>
+            </div>
+          </>
+        )}
+      </div>
     </div>
   )
 }

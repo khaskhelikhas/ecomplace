@@ -90,6 +90,25 @@ export const FOUNDING = {
   copy: 'Founding offer — the first 100 members lock in these prices for life.',
 }
 
+/**
+ * How a user pays. If a plan has a real checkout URL it is used; otherwise
+ * the user submits a manual-payment request that the admin approves.
+ * Edit the methods for your accounts.
+ */
+export const PAYMENT = {
+  // Set true once you have a hosted checkout (Lemon Squeezy / Paddle / Stripe)
+  hostedCheckout: false,
+  methods: [
+    { label: 'Wise / bank transfer', detail: 'khaskhelikhas013@gmail.com — request details after you submit' },
+    { label: 'Payoneer', detail: 'khaskhelikhas013@gmail.com' },
+    { label: 'JazzCash / Easypaisa', detail: 'shared after you submit a request' },
+    { label: 'Crypto (USDT TRC-20)', detail: 'address shared after you submit a request' },
+  ],
+  note:
+    'Submit the request below, pay by any method, then reply to our email with the receipt. ' +
+    'Your plan is activated within 24 hours (usually much faster).',
+}
+
 export const planOf = (user) => PLANS[user?.subscriptionPlan] || PLANS.free
 
 /** @returns {boolean} */
