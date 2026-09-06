@@ -27,7 +27,28 @@ good flip covers months of fee.
 
 ---
 
-## Phase 1 — manual (works today, $0 infra)
+## Phase 0 — manual requests (LIVE now, $0, no processor)
+
+Every paid plan's button opens a request panel: the user picks a payment
+method (Wise / Payoneer / JazzCash / Easypaisa / crypto — edit these in
+`plans.js` `PAYMENT.methods`), submits, pays offline, and emails the receipt.
+You see it in **/admin → Pending upgrade requests** and hit **Approve**,
+which sets their plan and resolves the request. Good for the first customers.
+
+## Phase 1 — hosted checkout (recommended next)
+
+Stripe is not available to Pakistani businesses. Use a **Merchant of Record**
+that is and that pays out to Pakistan (via Payoneer / wire):
+
+- **Lemon Squeezy** (now part of Stripe) — simplest, supports Pakistan payouts
+- **Paddle** — handles global cards + tax, Payoneer/wire payouts
+
+Create the products/prices there, get the checkout URLs, put them in
+`plans.js` (`checkoutUrl` / `checkoutUrlYear`) and set
+`PAYMENT.hostedCheckout = true`. Their webhook then flips the plan
+automatically (same idea as the Stripe extension below).
+
+## Phase 1b — Stripe (only if you can get a Stripe account)
 
 1. **Create Stripe Payment Links** (Stripe dashboard → Payment links) — 6 links,
    a monthly + an annual for each paid plan, and paste them into `plans.js`:
