@@ -1,8 +1,10 @@
 import { useState, useEffect, lazy, Suspense } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../store/authStore'
-import { getProduct, createAlert, addSourcing } from '../lib/data'
+import { Link } from 'react-router-dom'
+import { getProduct, createAlert, addSourcing, countAlerts, countSourcing } from '../lib/data'
 import { withUserAffiliate, hasUserAffiliate } from '../lib/userAffiliate'
+import { limitOf, planOf, can } from '../lib/plans'
 import SignalBadge from '../components/SignalBadge'
 import ProfitCalc from '../components/ProfitCalc'
 import { track } from '../lib/firebase'
@@ -33,6 +35,13 @@ export default function ProductDetail() {
   const submitAlert = async (e) => {
     e.preventDefault()
     if (!user?.id) return setMsg({ t: 'err', m: 'Please sign in again.' })
+    const lim = limitOf(user, 'alerts')
+    if (lim !== Infinity && (await countAlerts(user.id)) >= lim) {
+      return setMsg({
+        t: 'err',
+        m: `${planOf(user).name} plan is capped at ${lim} alerts. Upgrade for unlimited.`,
+      })
+    }
     try {
       await createAlert({
         userId: user.id,
@@ -61,10 +70,18 @@ export default function ProductDetail() {
   if (!p) return <div className="max-w-5xl mx-auto px-4 py-16 text-center text-ink-500">Deal not found.</div>
 
   const disc = p.marginPercentage || 0
-  const outUrl = withUserAffiliate(p.sourceUrl, p.source, user || {})
+  const affiliateOk = can(user, 'affiliateTags')
+  const outUrl = affiliateOk ? withUserAffiliate(p.sourceUrl, p.source, user || {}) : p.sourceUrl
 
   const addToSourcing = async () => {
     if (!user?.id) return setMsg({ t: 'err', m: 'Please sign in again.' })
+    const lim = limitOf(user, 'sourcing')
+    if (lim !== Infinity && (await countSourcing(user.id)) >= lim) {
+      return setMsg({
+        t: 'err',
+        m: `${planOf(user).name} plan is capped at ${lim} sourcing items. Upgrade for unlimited.`,
+      })
+    }
     try {
       await addSourcing(user.id, {
         productId: id,
@@ -178,7 +195,7 @@ export default function ProductDetail() {
             </button>
           </div>
 
-          {hasUserAffiliate(user || {}) && (
+          {affiliateOk && hasUserAffiliate(user || {}) && (
             <p className="text-[11px] text-emerald-600 mt-2">
               This link carries your affiliate id — purchases through it pay you.
             </p>
@@ -199,6 +216,14 @@ export default function ProductDetail() {
               }`}
             >
               {msg.m}
+              {msg.m?.includes('Upgrade') && (
+                <>
+                  {' '}
+                  <Link to="/upgrade" className="underline font-semibold">
+                    See plans
+                  </Link>
+                </>
+              )}
             </div>
           )}
 

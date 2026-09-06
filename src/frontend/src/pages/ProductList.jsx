@@ -1,11 +1,15 @@
 import { useState, useEffect, useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import { getProducts, buildProductsCsv } from '../lib/data'
+import { useAuthStore } from '../store/authStore'
+import { can } from '../lib/plans'
 import SignalBadge from '../components/SignalBadge'
 
 const REC_ORDER = { 'BUY NOW': 0, WATCH: 1, SKIP: 2 }
 
 export default function ProductList() {
+  const { user } = useAuthStore()
+  const canCsv = can(user, 'csvExport')
   const [all, setAll] = useState([])
   const [loading, setLoading] = useState(true)
   const [f, setF] = useState({ search: '', source: 'all', signal: 'all', minDisc: 0 })
@@ -63,9 +67,15 @@ export default function ProductList() {
             {loading ? 'Loading…' : `${rows.length} of ${all.length} deals`}
           </p>
         </div>
-        <button onClick={exportCsv} className="btn-ghost text-sm">
-          ⬇ Export CSV
-        </button>
+        {canCsv ? (
+          <button onClick={exportCsv} className="btn-ghost text-sm">
+            ⬇ Export CSV
+          </button>
+        ) : (
+          <Link to="/upgrade" className="btn-ghost text-sm opacity-70">
+            ⬇ Export CSV · Pro
+          </Link>
+        )}
       </div>
 
       {/* filters */}

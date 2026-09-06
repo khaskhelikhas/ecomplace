@@ -135,6 +135,20 @@ export async function getAlerts(userId) {
   )
 }
 
+/** Total alerts a user has (for plan limits). */
+export async function countAlerts(userId) {
+  if (!userId) return 0
+  const snap = await getDocs(query(collection(db, 'alerts'), where('userId', '==', userId)))
+  return snap.size
+}
+
+/** Total sourcing items a user has (for plan limits). */
+export async function countSourcing(userId) {
+  if (!userId) return 0
+  const snap = await getDocs(collection(db, 'users', userId, 'sourcing'))
+  return snap.size
+}
+
 /** Cheap: number of the user's alerts that have fired but not been seen. */
 export async function countUnseenAlerts(userId) {
   if (!userId) return 0
@@ -200,6 +214,32 @@ export async function getUserProfile(uid) {
 
 export async function saveUserProfile(uid, data) {
   return setDoc(doc(db, 'users', uid), { ...data, updatedAt: serverTimestamp() }, { merge: true })
+}
+
+/* ---------------- admin ---------------- */
+
+export async function listUsers() {
+  const snap = await getDocs(query(collection(db, 'users'), fbLimit(1000)))
+  return snap.docs.map((d) => ({ id: d.id, ...d.data() }))
+}
+
+export async function setUserPlan(uid, plan) {
+  return updateDoc(doc(db, 'users', uid), {
+    subscriptionPlan: plan,
+    planUpdatedAt: serverTimestamp(),
+  })
+}
+
+export async function getSystemStatus() {
+  const [snap, status] = await Promise.all([
+    getDoc(doc(db, 'snapshots', 'latest')),
+    getDoc(doc(db, 'snapshots', 'refreshStatus')),
+  ])
+  return {
+    dealCount: snap.exists() ? snap.data().count : 0,
+    snapshotUpdatedAt: snap.exists() ? snap.data().updatedAt : null,
+    refresh: status.exists() ? status.data() : null,
+  }
 }
 
 /* ---------------- sourcing list ---------------- */

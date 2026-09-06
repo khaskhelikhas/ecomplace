@@ -1,5 +1,7 @@
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import { useAuthStore } from '../store/authStore'
+import { can } from '../lib/plans'
 
 export default function Settings() {
   const { user, updateProfile } = useAuthStore()
@@ -69,11 +71,21 @@ export default function Settings() {
           </div>
         </section>
 
-        <section className="card p-5 sm:p-6 space-y-4">
-          <h2 className="font-bold">Your affiliate ids</h2>
+        <section className={`card p-5 sm:p-6 space-y-4 ${!can(user, 'affiliateTags') ? 'opacity-60' : ''}`}>
+          <div className="flex items-center justify-between">
+            <h2 className="font-bold">Your affiliate ids</h2>
+            {!can(user, 'affiliateTags') && (
+              <Link to="/upgrade" className="chip bg-brand-100 text-brand-700">
+                Pro feature →
+              </Link>
+            )}
+          </div>
           <p className="text-xs text-ink-500 -mt-2">
             When set, “View deal” links use YOUR tags, so purchases through them pay
-            YOU. Leave blank to use plain links.
+            YOU.{' '}
+            {can(user, 'affiliateTags')
+              ? 'Leave blank to use plain links.'
+              : 'Upgrade to Pro to enable this.'}
           </p>
           <div>
             <label className="label">Amazon Associates tag</label>

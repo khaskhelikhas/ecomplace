@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate, NavLink, useLocation } from 'react-router-dom'
 import { useAuthStore } from '../store/authStore'
 import { countUnseenAlerts } from '../lib/data'
+import { isAdmin } from '../lib/plans'
 
 export default function Navbar() {
   const navigate = useNavigate()
@@ -91,12 +92,30 @@ export default function Navbar() {
                     ))}
                   </div>
                   <NavLink
+                    to="/upgrade"
+                    className="block px-4 py-2.5 text-sm hover:bg-slate-50"
+                    onClick={() => setOpen(false)}
+                  >
+                    {user?.subscriptionPlan && user.subscriptionPlan !== 'free'
+                      ? 'Manage plan'
+                      : 'Upgrade ✨'}
+                  </NavLink>
+                  <NavLink
                     to="/settings"
                     className="block px-4 py-2.5 text-sm hover:bg-slate-50"
                     onClick={() => setOpen(false)}
                   >
                     Settings
                   </NavLink>
+                  {isAdmin(user) && (
+                    <NavLink
+                      to="/admin"
+                      className="block px-4 py-2.5 text-sm hover:bg-slate-50 text-brand-600 font-medium"
+                      onClick={() => setOpen(false)}
+                    >
+                      Admin
+                    </NavLink>
+                  )}
                   <button
                     onClick={handleLogout}
                     className="w-full text-left px-4 py-2.5 text-sm text-rose-600 hover:bg-rose-50"

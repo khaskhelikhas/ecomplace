@@ -3,47 +3,56 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // A signed-in user
     function signedIn() {
       return request.auth != null;
     }
 
-    // Users can read/write only their own profile
+    // Super-admin allowlist. Add / remove emails here (must match the
+    // ADMIN_EMAILS list in the frontend).
+    function isAdmin() {
+      return signedIn() && request.auth.token.email in [
+        'safdaraleekhaskheli@gmail.com',
+        'saifee.khaskheli@gmail.com',
+        'safdar@ecomplace.app'
+      ];
+    }
+
     match /users/{userId} {
-      allow read: if signedIn() && request.auth.uid == userId;
-      allow create, update: if signedIn() && request.auth.uid == userId;
+      allow read: if isAdmin() || (signedIn() && request.auth.uid == userId);
+      allow list: if isAdmin();
+      allow create: if signedIn() && request.auth.uid == userId
+                    && request.resource.data.get('subscriptionPlan', 'free') == 'free';
+      // A user may edit their own profile but NOT their own plan; an admin
+      // (or, later, the Stripe webhook's service account) may change plans.
+      allow update: if isAdmin()
+        || (signedIn() && request.auth.uid == userId
+            && request.resource.data.get('subscriptionPlan', 'free')
+               == resource.data.get('subscriptionPlan', 'free'));
       allow delete: if false;
 
-      // Personal sourcing / watchlist entries
       match /sourcing/{itemId} {
         allow read, create, update, delete: if signedIn() && request.auth.uid == userId;
       }
     }
 
-    // Products are read-only for any signed-in user.
-    // Writes happen only from the seed/refresh script using the Admin SDK,
-    // which bypasses these rules.
     match /products/{productId} {
       allow read: if signedIn();
       allow write: if false;
-
       match /priceHistory/{entryId} {
         allow read: if signedIn();
         allow write: if false;
       }
     }
 
-    // Pre-built list snapshot — one small doc the dashboard/deals pages read
-    // instead of fetching every product document on each visit. Public so the
-    // marketing landing page can show a few live teasers.
+    // Public so the marketing landing + static SEO generator can read it.
     match /snapshots/{snapId} {
       allow read: if true;
       allow write: if false;
     }
 
-    // Alerts belong to the user who created them.
     match /alerts/{alertId} {
-      allow read: if signedIn() && resource.data.userId == request.auth.uid;
+      allow read: if isAdmin() || (signedIn() && resource.data.userId == request.auth.uid);
+      allow list: if isAdmin();
       allow create: if signedIn() && request.resource.data.userId == request.auth.uid;
       allow update, delete: if signedIn() && resource.data.userId == request.auth.uid;
     }
