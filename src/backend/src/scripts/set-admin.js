@@ -55,7 +55,19 @@ if (!email) {
 }
 
 const auth = getAuth();
-const user = await auth.getUserByEmail(email);
+let user;
+try {
+  user = await auth.getUserByEmail(email);
+} catch (e) {
+  if (e.code === 'auth/user-not-found') {
+    console.error(
+      `No account exists for "${email}". They must sign up on the site first, ` +
+        `then run this with their real email.`
+    );
+    process.exit(1);
+  }
+  throw e;
+}
 const claims = { ...(user.customClaims || {}) };
 if (revoke) delete claims.admin;
 else claims.admin = true;
