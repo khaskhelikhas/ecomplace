@@ -82,6 +82,20 @@ const useAuthStore = create((set, get) => ({
     }
   },
 
+  // Re-enter the password (step-up auth, e.g. before opening the admin panel).
+  reauth: async (password) => {
+    const fbUser = auth.currentUser
+    if (!fbUser?.email) throw new Error('Not signed in')
+    try {
+      await reauthenticateWithCredential(
+        fbUser,
+        EmailAuthProvider.credential(fbUser.email, password)
+      )
+    } catch (e) {
+      throw new Error(friendlyAuthError(e))
+    }
+  },
+
   // Re-read the Firestore profile (e.g. after an admin approves an upgrade).
   refreshProfile: async () => {
     const fbUser = auth.currentUser

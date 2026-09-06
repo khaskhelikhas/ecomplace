@@ -10,9 +10,81 @@ import {
   resolvePaymentRequest,
 } from '../lib/data'
 
+const UNLOCK_KEY = 'ecp_admin_unlocked'
+
 export default function Admin() {
-  const { user } = useAuthStore()
+  const { user, reauth } = useAuthStore()
   const admin = isAdmin(user)
+  const [unlocked, setUnlocked] = useState(
+    () => sessionStorage.getItem(UNLOCK_KEY) === '1'
+  )
+
+  if (!admin) return <Navigate to="/" />
+
+  if (!unlocked) {
+    return (
+      <StepUp
+        onOk={async (pw) => {
+          await reauth(pw)
+          sessionStorage.setItem(UNLOCK_KEY, '1')
+          setUnlocked(true)
+        }}
+      />
+    )
+  }
+
+  return <AdminPanel user={user} />
+}
+
+function StepUp({ onOk }) {
+  const [pw, setPw] = useState('')
+  const [err, setErr] = useState(null)
+  const [busy, setBusy] = useState(false)
+
+  const submit = async (e) => {
+    e.preventDefault()
+    setBusy(true)
+    setErr(null)
+    try {
+      await onOk(pw)
+    } catch (e2) {
+      setErr(e2.message || 'Wrong password.')
+    }
+    setBusy(false)
+  }
+
+  return (
+    <div className="max-w-sm mx-auto px-4 py-24">
+      <div className="card p-6">
+        <h1 className="font-bold text-lg">Admin — confirm it's you</h1>
+        <p className="text-sm text-ink-500 mt-1 mb-4">
+          Re-enter your password to open the admin panel.
+        </p>
+        {err && (
+          <p className="text-sm text-rose-700 bg-rose-50 border border-rose-200 rounded-lg px-3 py-2 mb-3">
+            {err}
+          </p>
+        )}
+        <form onSubmit={submit}>
+          <input
+            className="field"
+            type="password"
+            autoFocus
+            placeholder="Password"
+            value={pw}
+            onChange={(e) => setPw(e.target.value)}
+          />
+          <button className="btn-primary w-full mt-3" disabled={busy || !pw}>
+            {busy ? 'Checking…' : 'Unlock'}
+          </button>
+        </form>
+      </div>
+    </div>
+  )
+}
+
+function AdminPanel({ user }) {
+  const admin = true
 
   const [users, setUsers] = useState([])
   const [status, setStatus] = useState(null)
