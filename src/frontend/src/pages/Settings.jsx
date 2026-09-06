@@ -1,10 +1,27 @@
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../store/authStore'
 import { can } from '../lib/plans'
 
 export default function Settings() {
-  const { user, updateProfile } = useAuthStore()
+  const navigate = useNavigate()
+  const { user, updateProfile, deleteAccount } = useAuthStore()
+  const [delPw, setDelPw] = useState('')
+  const [delBusy, setDelBusy] = useState(false)
+  const [delErr, setDelErr] = useState(null)
+
+  const doDelete = async () => {
+    if (!confirm('Permanently delete your account and all your data? This cannot be undone.')) return
+    setDelBusy(true)
+    setDelErr(null)
+    try {
+      await deleteAccount(delPw)
+      navigate('/login')
+    } catch (e) {
+      setDelErr(e.message || 'Could not delete account.')
+    }
+    setDelBusy(false)
+  }
   const [f, setF] = useState({
     fullName: user?.fullName || '',
     affiliateAmazonTag: user?.affiliateAmazonTag || '',
@@ -153,6 +170,32 @@ export default function Settings() {
           {saving ? 'Saving…' : 'Save settings'}
         </button>
       </form>
+
+      <section className="card p-5 sm:p-6 mt-8 border-rose-200">
+        <h2 className="font-bold text-rose-700">Delete account</h2>
+        <p className="text-xs text-ink-500 mt-1 mb-3">
+          Removes your profile, alerts and sourcing list permanently.
+        </p>
+        {delErr && (
+          <p className="text-sm text-rose-700 bg-rose-50 border border-rose-200 rounded-lg px-3 py-2 mb-3">
+            {delErr}
+          </p>
+        )}
+        <input
+          className="field mb-2"
+          type="password"
+          placeholder="Confirm your password"
+          value={delPw}
+          onChange={(e) => setDelPw(e.target.value)}
+        />
+        <button
+          onClick={doDelete}
+          disabled={delBusy || !delPw}
+          className="w-full border border-rose-300 text-rose-700 font-semibold py-2.5 rounded-lg hover:bg-rose-50 disabled:opacity-50"
+        >
+          {delBusy ? 'Deleting…' : 'Delete my account'}
+        </button>
+      </section>
     </div>
   )
 }

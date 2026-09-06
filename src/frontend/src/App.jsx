@@ -1,6 +1,7 @@
 import { lazy, Suspense, useEffect } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import Navbar from './components/Navbar'
+import VerifyBanner from './components/VerifyBanner'
 import Login from './pages/Login'
 import Register from './pages/Register'
 import Landing from './pages/Landing'
@@ -36,6 +37,7 @@ function App() {
   return (
     <BrowserRouter>
       {user && <Navbar />}
+      {user && <VerifyBanner />}
       <Suspense fallback={<Spinner />}>
         <Routes>
           {/* always public */}

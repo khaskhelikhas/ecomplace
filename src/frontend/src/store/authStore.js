@@ -3,11 +3,25 @@ import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
   sendPasswordResetEmail,
+  sendEmailVerification,
   signOut,
   onAuthStateChanged,
   updateProfile,
+  deleteUser,
+  reauthenticateWithCredential,
+  EmailAuthProvider,
 } from 'firebase/auth'
-import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore'
+import {
+  doc,
+  getDoc,
+  setDoc,
+  deleteDoc,
+  getDocs,
+  collection,
+  query,
+  where,
+  serverTimestamp,
+} from 'firebase/firestore'
 import { auth, db } from '../lib/firebase'
 
 /**
@@ -39,6 +53,7 @@ const useAuthStore = create((set, get) => ({
         user: {
           id: fbUser.uid,
           email: fbUser.email,
+          emailVerified: fbUser.emailVerified,
           fullName: profile.fullName || fbUser.displayName || fbUser.email,
           subscriptionPlan: profile.subscriptionPlan || 'free',
           affiliateAmazonTag: profile.affiliateAmazonTag || '',
@@ -50,6 +65,56 @@ const useAuthStore = create((set, get) => ({
         loading: false,
       })
     })
+  },
+
+  resendVerification: async () => {
+    if (auth.currentUser && !auth.currentUser.emailVerified) {
+      await sendEmailVerification(auth.currentUser)
+    }
+  },
+
+  // Permanently delete the account and its data.
+  deleteAccount: async (password) => {
+    const fbUser = auth.currentUser
+    if (!fbUser) throw new Error('Not signed in')
+
+    // Recent-login requirement.
+    if (password) {
+      try {
+        await reauthenticateWithCredential(
+          fbUser,
+          EmailAuthProvider.credential(fbUser.email, password)
+        )
+      } catch (e) {
+        throw new Error(friendlyAuthError(e))
+      }
+    }
+
+    const uid = fbUser.uid
+    // Best-effort cleanup of the user's data.
+    try {
+      const alerts = await getDocs(
+        query(collection(db, 'alerts'), where('userId', '==', uid))
+      )
+      await Promise.all(alerts.docs.map((d) => deleteDoc(d.ref)))
+      const sourcing = await getDocs(collection(db, 'users', uid, 'sourcing'))
+      await Promise.all(sourcing.docs.map((d) => deleteDoc(d.ref)))
+    } catch (e) {
+      console.warn('data cleanup partial:', e)
+    }
+    // The users/{uid} doc: delete is disabled by rules, so blank it out.
+    try {
+      await setDoc(doc(db, 'users', uid), { deletedAt: serverTimestamp() }, { merge: true })
+    } catch {
+      /* ignore */
+    }
+
+    try {
+      await deleteUser(fbUser)
+    } catch (e) {
+      throw new Error(friendlyAuthError(e))
+    }
+    set({ user: null })
   },
 
   // Merge fields into the user's Firestore profile and local state.
@@ -91,6 +156,12 @@ const useAuthStore = create((set, get) => ({
         subscriptionPlan: 'free',
         createdAt: serverTimestamp(),
       })
+
+      try {
+        await sendEmailVerification(cred.user)
+      } catch {
+        /* non-fatal */
+      }
       // onAuthStateChanged fills in user
     } catch (error) {
       const message = friendlyAuthError(error)

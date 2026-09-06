@@ -6,7 +6,6 @@
 export const ADMIN_EMAILS = [
   'safdaraleekhaskheli@gmail.com',
   'saifee.khaskheli@gmail.com',
-  'safdar@ecomplace.app', // test account — remove for production
 ]
 
 export const isAdmin = (user) =>

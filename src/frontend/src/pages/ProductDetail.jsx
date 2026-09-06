@@ -35,6 +35,8 @@ export default function ProductDetail() {
   const submitAlert = async (e) => {
     e.preventDefault()
     if (!user?.id) return setMsg({ t: 'err', m: 'Please sign in again.' })
+    if (!user.emailVerified)
+      return setMsg({ t: 'err', m: 'Verify your email first so we can send alerts.' })
     const lim = limitOf(user, 'alerts')
     if (lim !== Infinity && (await countAlerts(user.id)) >= lim) {
       return setMsg({
