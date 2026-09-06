@@ -1,11 +1,13 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, lazy, Suspense } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../store/authStore'
 import { getProduct, createAlert, addSourcing } from '../lib/data'
 import { withUserAffiliate, hasUserAffiliate } from '../lib/userAffiliate'
-import PriceChart from '../components/PriceChart'
 import SignalBadge from '../components/SignalBadge'
 import ProfitCalc from '../components/ProfitCalc'
+import { track } from '../lib/firebase'
+
+const PriceChart = lazy(() => import('../components/PriceChart'))
 
 export default function ProductDetail() {
   const { id } = useParams()
@@ -139,12 +141,18 @@ export default function ProductDetail() {
           )}
 
           <div className="mt-6">
-            <ProfitCalc dealPrice={p.currentPrice} suggestedSell={p.previousPrice} />
+            <ProfitCalc
+              dealPrice={p.currentPrice}
+              suggestedSell={p.previousPrice}
+              category={p.category}
+            />
           </div>
 
           <div className="mt-6">
             <h2 className="font-bold mb-3">Price history</h2>
-            <PriceChart history={p.priceHistory} />
+            <Suspense fallback={<div className="skeleton h-[200px]" />}>
+              <PriceChart history={p.priceHistory} />
+            </Suspense>
           </div>
 
           <div className="mt-6 flex flex-col sm:flex-row gap-3">
@@ -153,6 +161,13 @@ export default function ProductDetail() {
                 href={outUrl}
                 target="_blank"
                 rel="noopener noreferrer"
+                onClick={() =>
+                  track('deal_click', {
+                    source: p.source,
+                    price: p.currentPrice,
+                    recommendation: p.recommendation,
+                  })
+                }
                 className="btn-primary flex-1"
               >
                 View deal at {p.source?.replace(/-/g, ' ')} ↗

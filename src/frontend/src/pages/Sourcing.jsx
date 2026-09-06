@@ -123,9 +123,10 @@ export default function Sourcing() {
 
           <div className="space-y-3">
             {rows.map((r) => (
-              <div key={r.id} className="card p-4">
+              <div key={r.id} className={`card p-4 ${r.purchased ? 'border-emerald-200 bg-emerald-50/40' : ''}`}>
                 <div className="flex items-start justify-between gap-3">
                   <Link to={`/products/${r.productId}`} className="font-semibold text-sm hover:text-brand-700 line-clamp-2">
+                    {r.purchased && <span className="chip bg-emerald-100 text-emerald-700 mr-1">bought</span>}
                     {r.name}
                   </Link>
                   <button onClick={() => remove(r.id)} className="text-xs text-rose-600 shrink-0">✕</button>
@@ -141,7 +142,7 @@ export default function Sourcing() {
                       onChange={(e) => patch(r.id, { qty: Number(e.target.value) || 1 })}
                     />
                   </Cell>
-                  <Cell label="Sell price">
+                  <Cell label={r.purchased ? 'Actual sell' : 'Sell price'}>
                     <input
                       className="field py-1.5"
                       type="number"
@@ -149,7 +150,7 @@ export default function Sourcing() {
                       onChange={(e) => patch(r.id, { sellPrice: Number(e.target.value) || 0 })}
                     />
                   </Cell>
-                  <Cell label="Profit">
+                  <Cell label={r.purchased ? 'Actual profit' : 'Est. profit'}>
                     <span className={`font-bold ${r.profit >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>
                       ${r.profit.toFixed(0)}
                     </span>
@@ -158,6 +159,16 @@ export default function Sourcing() {
                     <span className="font-semibold">{r.roi.toFixed(0)}%</span>
                   </Cell>
                 </div>
+                <button
+                  onClick={() => patch(r.id, { purchased: !r.purchased })}
+                  className={`mt-3 text-xs px-3 py-1.5 rounded-lg font-medium ${
+                    r.purchased
+                      ? 'bg-white border border-emerald-300 text-emerald-700'
+                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                  }`}
+                >
+                  {r.purchased ? '✓ Marked as bought' : 'Mark as bought'}
+                </button>
               </div>
             ))}
           </div>

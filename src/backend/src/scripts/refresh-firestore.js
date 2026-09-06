@@ -120,8 +120,8 @@ async function main() {
       bestSellersRank: p.best_sellers_rank ?? 9999,
       fbaFee: p.fba_fee ?? 0,
       shippingCost: p.shipping_cost ?? 0,
-      // Feed data already carries a real discount %; otherwise estimate.
-      marginPercentage: p.margin_percentage ? Number(p.margin_percentage) : withMargin(p),
+      // Only show a discount when the feed gave us a real list/was price.
+      marginPercentage: Number(p.margin_percentage) || 0,
       imageUrl: p.image_url || null,
       expiresAt: p.expires_at || null,
       fetchedAt: now,
@@ -222,10 +222,29 @@ async function main() {
     for (const old of hist.docs) await old.ref.delete();
   }
 
+  // Health record so a failing cron is visible.
+  await db.collection('snapshots').doc('refreshStatus').set({
+    ok: true,
+    dealCount: snapshotRows.length,
+    ranAt: now,
+  });
+
   console.log('Refresh complete');
 }
 
-main().catch((err) => {
+main().catch(async (err) => {
   console.error('Refresh failed:', err);
+  try {
+    const { getFirestore, FieldValue } = await import('firebase-admin/firestore');
+    await getFirestore()
+      .collection('snapshots')
+      .doc('refreshStatus')
+      .set(
+        { ok: false, error: String(err?.message || err), ranAt: FieldValue.serverTimestamp() },
+        { merge: true }
+      );
+  } catch {
+    /* best effort */
+  }
   process.exit(1);
 });

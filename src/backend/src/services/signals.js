@@ -23,9 +23,10 @@ export function computeSignals(product, historyPricesNewestFirst = []) {
 
   // --- price trend from the recent series (oldest -> newest) ---
   const series = [...historyPricesNewestFirst].reverse();
-  let trend = 'stable';
+  const enoughHistory = series.length >= 3;
+  let trend = enoughHistory ? 'stable' : 'new';
   let slopePct = 0;
-  if (series.length >= 2) {
+  if (enoughHistory) {
     const first = series[0];
     const last = series[series.length - 1];
     slopePct = first ? ((last - first) / first) * 100 : 0;
@@ -49,10 +50,10 @@ export function computeSignals(product, historyPricesNewestFirst = []) {
   let dropChance = 25;
   if (trend === 'falling') dropChance += 35;
   if (trend === 'rising') dropChance -= 15;
-  if (discount < 15) dropChance += 10; // shallow cut = room to fall
+  if (discount > 0 && discount < 15) dropChance += 10; // shallow cut = room to fall
   if (discount > 50) dropChance -= 15; // already deep
   if (expiresInHours != null && expiresInHours <= 6) dropChance -= 25; // ending soon
-  dropChance = clamp(Math.round(dropChance), 5, 90);
+  dropChance = enoughHistory ? clamp(Math.round(dropChance), 5, 90) : null;
 
   // --- composite deal score ---
   let score = 0;
@@ -67,19 +68,25 @@ export function computeSignals(product, historyPricesNewestFirst = []) {
   let recommendation;
   let reason;
   const endsSoonBits = expiresInHours != null ? `, ends in ${expiresInHours}h` : '';
+  const dc = dropChance ?? 40;
 
-  if (score >= 65 && dropChance < 55 && (expiresInHours == null || expiresInHours <= 72)) {
+  if (score >= 60 && dc < 55 && (expiresInHours == null || expiresInHours <= 72)) {
     recommendation = 'BUY NOW';
-    reason = `${discount}% off, ~$${flipMargin.toFixed(0)} est. margin${endsSoonBits}`;
-  } else if (trend === 'falling' && dropChance >= 55) {
+    reason =
+      (discount > 0 ? `${discount}% off, ` : '') +
+      `~$${flipMargin.toFixed(0)} est. margin${endsSoonBits}`;
+  } else if (trend === 'falling' && dc >= 55) {
     recommendation = 'WATCH';
-    reason = `price sliding (${slopePct.toFixed(1)}%) - likely a bit cheaper in the next few hours`;
-  } else if (score >= 45) {
+    reason = `price sliding (${slopePct.toFixed(1)}%) - likely a bit cheaper soon`;
+  } else if (score >= 40) {
     recommendation = 'WATCH';
-    reason = `solid deal (${discount}% off) - hold for a deeper cut`;
+    reason =
+      discount > 0
+        ? `solid deal (${discount}% off)${!enoughHistory ? ' - tracking price' : ' - hold for a deeper cut'}`
+        : `decent price - tracking for a drop`;
   } else {
     recommendation = 'SKIP';
-    reason = `thin margin / small discount`;
+    reason = discount > 0 ? `thin margin` : `no confirmed discount yet`;
   }
 
   return {

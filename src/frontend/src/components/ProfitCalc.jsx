@@ -1,16 +1,21 @@
 import { useState, useMemo } from 'react'
 import { useAuthStore } from '../store/authStore'
+import { categoryFeePct } from '../lib/fees'
 
 /**
  * Retail-arbitrage profit calculator.
  * dealPrice = what the user pays now (the deal price).
  */
-export default function ProfitCalc({ dealPrice = 0, suggestedSell = 0 }) {
+export default function ProfitCalc({ dealPrice = 0, suggestedSell = 0, category = '' }) {
   const { user } = useAuthStore()
+  const catFee = categoryFeePct(category)
   const [sell, setSell] = useState(
     suggestedSell ? String(Math.round(suggestedSell)) : String(Math.round(dealPrice * 1.6))
   )
-  const [feePct, setFeePct] = useState(String(user?.defaultFeePct ?? 15))
+  // Prefer the user's saved default; otherwise the category estimate.
+  const [feePct, setFeePct] = useState(
+    String(user?.defaultFeePct != null && user.defaultFeePct !== 15 ? user.defaultFeePct : catFee)
+  )
   const [ship, setShip] = useState(String(user?.defaultShipping ?? 0))
   const [qty, setQty] = useState('1')
 
@@ -51,7 +56,7 @@ export default function ProfitCalc({ dealPrice = 0, suggestedSell = 0 }) {
         <Field label="Your sell price ($)">
           <input className="field" type="number" value={sell} onChange={(e) => setSell(e.target.value)} />
         </Field>
-        <Field label="Marketplace fee %">
+        <Field label={`Marketplace fee % (est. ${catFee}% for ${category || 'general'})`}>
           <input className="field" type="number" value={feePct} onChange={(e) => setFeePct(e.target.value)} />
         </Field>
         <Field label="Shipping / unit ($)">

@@ -84,6 +84,18 @@ const cleanName = (title = '') =>
     .replace(/:\s*$/,'')
     .trim();
 
+/**
+ * Store-wide sale roundups ("Best Buy Labor Day Sale: Up to 70% off") are not
+ * single products - drop them so the list stays actionable.
+ */
+const isRoundup = (name = '') =>
+  /\bsale:\s|\bdeals?\s+at\s|\bspecials?\s+(for|at)\s|\bup\s+to\s+[$\d]|\bclearance\b|\bgift\s+guide\b|%\s+off\b/i.test(
+    name
+  );
+
+/** Basic sanity on a scraped price. */
+const sanePrice = (n) => typeof n === 'number' && n > 0 && n < 100000;
+
 const SLICKDEALS_URL =
   'https://slickdeals.net/newsearch.php?mode=frontpage&searcharea=deals&searchin=first&rss=1';
 
@@ -91,7 +103,12 @@ const SLICKDEALS_URL =
  * Slickdeals frontpage RSS - community-voted deals. No key.
  */
 export async function fetchSlickdeals() {
-  const res = await fetch(SLICKDEALS_URL, { headers: { 'User-Agent': UA } });
+  // Slickdeals 403s intermittently - one quick retry.
+  let res = await fetch(SLICKDEALS_URL, { headers: { 'User-Agent': UA } });
+  if (res.status === 403) {
+    await new Promise((r) => setTimeout(r, 1500));
+    res = await fetch(SLICKDEALS_URL, { headers: { 'User-Agent': UA, Accept: 'application/rss+xml' } });
+  }
   if (!res.ok) throw new Error(`Slickdeals feed HTTP ${res.status}`);
   const xml = await res.text();
 
@@ -107,7 +124,10 @@ export async function fetchSlickdeals() {
     const encoded = tag(item, 'content:encoded') || '';
 
     const current = parsePrice(title) ?? parsePrice(desc);
-    if (current == null) return;
+    if (!sanePrice(current)) return;
+
+    const name = cleanName(title);
+    if (isRoundup(name)) return;
 
     // "... via Amazon [amazon.com] has ..." -> retailer
     const viaMatch = desc.match(/\bvia\s+([A-Za-z0-9 .&'-]+?)\s*(?:\[|has\b)/i);
@@ -122,7 +142,7 @@ export async function fetchSlickdeals() {
     const dealId = link.match(/\/f\/(\d+)/)?.[1] || i;
 
     out.push({
-      name: cleanName(title),
+      name,
       category: 'Deals',
       source: slugRetailer(retailer),
       source_url: link,
@@ -168,7 +188,10 @@ export async function fetchDealNews() {
     const expires = tag(item, 'dealnews:expires') || null;
 
     const current = parsePrice(title) ?? parsePrice(descRaw);
-    if (current == null) return; // skip coupon-only / no-price entries
+    if (!sanePrice(current)) return; // skip coupon-only / no-price / junk
+
+    const name = cleanName(title);
+    if (isRoundup(name)) return;
 
     const list = parseListPrice(descRaw, current);
     const discountPct =
@@ -177,7 +200,7 @@ export async function fetchDealNews() {
     const imgMatch = descRaw.match(/<img[^>]+src=['"]([^'"]+)['"]/i);
 
     out.push({
-      name: cleanName(title),
+      name,
       category,
       source: slugRetailer(retailer),
       source_url: link,

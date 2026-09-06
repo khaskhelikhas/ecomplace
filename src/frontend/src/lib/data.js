@@ -179,6 +179,17 @@ export async function deleteAlert(id) {
   return deleteDoc(doc(db, 'alerts', id))
 }
 
+/** Change an alert's target and re-arm it (isTriggered -> false). */
+export async function updateAlertTarget(id, { targetPrice, targetMargin }) {
+  return updateDoc(doc(db, 'alerts', id), {
+    targetPrice: targetPrice ?? null,
+    targetMargin: targetMargin ?? null,
+    isTriggered: false,
+    seen: false,
+    triggeredAt: null,
+  })
+}
+
 /* ---------------- user profile ---------------- */
 
 export async function getUserProfile(uid) {

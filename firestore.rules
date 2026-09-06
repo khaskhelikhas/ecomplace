@@ -34,9 +34,10 @@ service cloud.firestore {
     }
 
     // Pre-built list snapshot — one small doc the dashboard/deals pages read
-    // instead of fetching every product document on each visit.
+    // instead of fetching every product document on each visit. Public so the
+    // marketing landing page can show a few live teasers.
     match /snapshots/{snapId} {
-      allow read: if signedIn();
+      allow read: if true;
       allow write: if false;
     }
 
