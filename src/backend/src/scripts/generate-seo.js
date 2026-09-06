@@ -202,8 +202,11 @@ async function main() {
   const snap = await db.collection('snapshots').doc('latest').get();
   const products = (snap.exists && snap.data().products) || [];
   if (!products.length) {
-    console.log('No products in snapshot — nothing to generate.');
-    return;
+    // Exit non-zero so the deploy step does NOT run — otherwise a transient
+    // read failure (e.g. Firestore free-quota) would publish a bare SPA with
+    // no /d, /deals, /api or sitemap, breaking the public pages + Agency API.
+    console.error('No products in snapshot — aborting so the last good deploy stays live.');
+    process.exit(1);
   }
 
   rmSync(join(DIST, 'd'), { recursive: true, force: true });

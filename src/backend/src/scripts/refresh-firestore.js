@@ -254,15 +254,28 @@ async function main() {
   }
   console.log(`Triggered ${triggered} alerts` + (emailed ? `, emailed ${emailed}` : ''));
 
-  // Trim price history to the newest 30 points per product
-  const productsSnap = await db.collection('products').get();
-  for (const prodDoc of productsSnap.docs) {
-    const hist = await prodDoc.ref
-      .collection('priceHistory')
-      .orderBy('recordedAt', 'desc')
-      .offset(30)
-      .get();
-    for (const old of hist.docs) await old.ref.delete();
+  // Trim price history to the newest 30 points per product.
+  // This scan + per-product query is the heaviest part of the run, so only do
+  // it a few times a day (top of every 4th UTC hour) to stay well inside the
+  // Firestore free-tier quota. 30 points ≈ 10h of history at a 20-min cadence,
+  // so trimming every 4h keeps it from growing unbounded.
+  const nowD = new Date();
+  const doTrim = nowD.getUTCHours() % 4 === 0 && nowD.getUTCMinutes() < 20;
+  if (doTrim) {
+    const productsSnap = await db.collection('products').get();
+    let trimmed = 0;
+    for (const prodDoc of productsSnap.docs) {
+      const hist = await prodDoc.ref
+        .collection('priceHistory')
+        .orderBy('recordedAt', 'desc')
+        .offset(30)
+        .get();
+      for (const old of hist.docs) {
+        await old.ref.delete();
+        trimmed++;
+      }
+    }
+    console.log(`Trimmed ${trimmed} old price-history points`);
   }
 
   // Health record so a failing cron is visible.
