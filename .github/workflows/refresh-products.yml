@@ -10,6 +10,10 @@ on:
     - cron: "*/20 * * * *"
   workflow_dispatch:
 
+env:
+  FIREBASE_PROJECT_ID: ecomplace-app-4db34
+  APP_URL: https://ecomplace-app-4db34.web.app
+
 jobs:
   refresh:
     runs-on: ubuntu-latest
@@ -24,13 +28,14 @@ jobs:
         working-directory: src/backend
         run: npm ci --omit=dev || npm install --omit=dev
 
-      - name: Run Firestore refresh
+      - name: Write service account file
+        run: printf '%s' '${{ secrets.FIREBASE_SERVICE_ACCOUNT }}' > "$RUNNER_TEMP/sa.json"
+
+      - name: Refresh Firestore data
         working-directory: src/backend
         env:
-          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
-          FIREBASE_PROJECT_ID: ecomplace-app-4db34
-          APP_URL: https://ecomplace-app-4db34.web.app
-          # --- Affiliate IDs (add the programs you joined) ---
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/sa.json
+          # --- Affiliate ids ---
           AMAZON_ASSOC_TAG: ${{ secrets.AMAZON_ASSOC_TAG }}
           EBAY_CAMPAIGN_ID: ${{ secrets.EBAY_CAMPAIGN_ID }}
           WALMART_AFFILIATE_QS: ${{ secrets.WALMART_AFFILIATE_QS }}
@@ -44,6 +49,23 @@ jobs:
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
           # --- Optional paid data sources ---
           KEEPA_API_KEY: ${{ secrets.KEEPA_API_KEY }}
-          WALMART_API_KEY: ${{ secrets.WALMART_API_KEY }}
-          ALIEXPRESS_AFFILIATE_ID: ${{ secrets.ALIEXPRESS_AFFILIATE_ID }}
         run: npm run refresh:firestore
+
+      - name: Install frontend dependencies
+        working-directory: src/frontend
+        run: npm ci || npm install
+
+      - name: Build the app
+        working-directory: src/frontend
+        run: npm run build
+
+      - name: Generate SEO deal pages + sitemap
+        working-directory: src/backend
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/sa.json
+        run: npm run generate:seo
+
+      - name: Deploy hosting
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/sa.json
+        run: npx --yes firebase-tools@13 deploy --only hosting --project "$FIREBASE_PROJECT_ID" --non-interactive
