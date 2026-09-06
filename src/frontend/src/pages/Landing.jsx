@@ -109,12 +109,6 @@ export default function Landing() {
         </div>
       </section>
 
-      <footer className="max-w-6xl mx-auto px-4 py-10 text-center text-xs text-ink-400">
-        © {new Date().getFullYear()} EcomPlace · Deal data from DealNews & Slickdeals ·
-        outbound links may earn a commission ·{' '}
-        <Link to="/terms" className="hover:underline">Terms</Link> ·{' '}
-        <Link to="/privacy" className="hover:underline">Privacy</Link>
-      </footer>
     </div>
   )
 }

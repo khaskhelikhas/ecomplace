@@ -146,7 +146,9 @@ footer{margin-top:40px;font-size:12px;color:#94a3b8;text-align:center}
 
   <footer>
     © ${new Date().getFullYear()} ${BRAND} ·
-    <a href="${SITE}/terms">Terms</a> · <a href="${SITE}/privacy">Privacy</a>
+    <a href="${SITE}/terms">Terms</a> · <a href="${SITE}/privacy">Privacy</a><br>
+    Developed by <b>Safdar Khaskheli</b> ·
+    <a href="https://wa.me/923132565013" rel="noopener">WhatsApp +92 313 2565013</a>
   </footer>
 </div>
 </body>
@@ -185,6 +187,12 @@ a.item b{color:#475569;font-weight:600;white-space:nowrap}
 <h1>All live deals</h1>
 <p class="sub">${products.length} deals · refreshed every 20 minutes · <a href="${SITE}/register">create a free account</a> for alerts &amp; the profit calculator.</p>
 ${rows}
+<p style="margin-top:34px;font-size:12px;color:#94a3b8">
+  © ${new Date().getFullYear()} ${BRAND} ·
+  <a href="${SITE}/terms">Terms</a> · <a href="${SITE}/privacy">Privacy</a> ·
+  Developed by <b>Safdar Khaskheli</b> ·
+  <a href="https://wa.me/923132565013" rel="noopener">WhatsApp +92 313 2565013</a>
+</p>
 </div></body></html>`;
 }
 
