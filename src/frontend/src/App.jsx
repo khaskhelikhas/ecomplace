@@ -19,6 +19,7 @@ const Settings = lazy(() => import('./pages/Settings'))
 const Upgrade = lazy(() => import('./pages/Upgrade'))
 const Admin = lazy(() => import('./pages/Admin'))
 const Analyzer = lazy(() => import('./pages/Analyzer'))
+const Api = lazy(() => import('./pages/Api'))
 
 const Spinner = () => (
   <div className="max-w-7xl mx-auto px-4 py-16 text-center text-ink-400 text-sm">Loading…</div>
@@ -68,6 +69,7 @@ function App() {
               <Route path="/alerts" element={<Alerts />} />
               <Route path="/sourcing" element={<Sourcing />} />
               <Route path="/analyzer" element={<Analyzer />} />
+              <Route path="/api" element={<Api />} />
               <Route path="/settings" element={<Settings />} />
               <Route path="/upgrade" element={<Upgrade />} />
               {/* Route is always registered so a just-promoted admin can reach

@@ -76,6 +76,8 @@ const useAuthStore = create((set, get) => ({
           affiliateGenericQs: profile.affiliateGenericQs || '',
           defaultFeePct: profile.defaultFeePct ?? 15,
           defaultShipping: profile.defaultShipping ?? 0,
+          apiToken: profile.apiToken || '',
+          teamEmails: profile.teamEmails || [],
         },
         loading: false,
       })
@@ -129,6 +131,8 @@ const useAuthStore = create((set, get) => ({
           affiliateGenericQs: profile.affiliateGenericQs || '',
           defaultFeePct: profile.defaultFeePct ?? 15,
           defaultShipping: profile.defaultShipping ?? 0,
+          apiToken: profile.apiToken || '',
+          teamEmails: profile.teamEmails || [],
         },
       })
     } catch {

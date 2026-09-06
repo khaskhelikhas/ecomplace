@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate, NavLink, useLocation } from 'react-router-dom'
 import { useAuthStore } from '../store/authStore'
 import { countUnseenAlerts, countPendingRequests } from '../lib/data'
-import { isAdmin } from '../lib/plans'
+import { isAdmin, can } from '../lib/plans'
 
 export default function Navbar() {
   const navigate = useNavigate()
@@ -12,6 +12,7 @@ export default function Navbar() {
   const [alertCount, setAlertCount] = useState(0)
   const [pendingReqs, setPendingReqs] = useState(0)
   const admin = isAdmin(user)
+  const hasApi = can(user, 'api')
 
   useEffect(() => {
     if (!user?.id) return
@@ -51,6 +52,11 @@ export default function Navbar() {
             <NavLink to="/analyzer" className={link}>
               Analyzer
             </NavLink>
+            {hasApi && (
+              <NavLink to="/api" className={link}>
+                API
+              </NavLink>
+            )}
             <NavLink to="/alerts" className={link}>
               Alerts
               {alertCount > 0 && (
@@ -88,7 +94,14 @@ export default function Navbar() {
                     </span>
                   </div>
                   <div className="sm:hidden border-b border-slate-100 py-1">
-                    {['/', '/products', '/sourcing', '/analyzer', '/alerts'].map((to, i) => (
+                    {[
+                      ['/', 'Dashboard'],
+                      ['/products', 'Deals'],
+                      ['/sourcing', 'Sourcing'],
+                      ['/analyzer', 'Analyzer'],
+                      ...(hasApi ? [['/api', 'API']] : []),
+                      ['/alerts', 'Alerts'],
+                    ].map(([to, label]) => (
                       <NavLink
                         key={to}
                         to={to}
@@ -96,7 +109,7 @@ export default function Navbar() {
                         className="block px-4 py-2 text-sm hover:bg-slate-50"
                         onClick={() => setOpen(false)}
                       >
-                        {['Dashboard', 'Deals', 'Sourcing', 'Analyzer', 'Alerts'][i]}
+                        {label}
                       </NavLink>
                     ))}
                   </div>

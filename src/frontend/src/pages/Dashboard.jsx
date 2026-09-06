@@ -85,6 +85,18 @@ export default function Dashboard() {
         </div>
       )}
 
+      {user?.subscriptionPlan === 'pro' && (
+        <div className="card p-4 mb-6 flex flex-wrap items-center justify-between gap-3">
+          <p className="text-sm text-ink-600">
+            <b>Pro plan.</b> Agency ($99/mo) adds the JSON deals API, 5 team
+            seats, white-label and priority support.
+          </p>
+          <Link to="/upgrade" className="btn-primary text-sm shrink-0">
+            Compare plans →
+          </Link>
+        </div>
+      )}
+
       {/* stat tiles */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         <Stat label="Live deals" value={stats.totalProducts} />

@@ -219,6 +219,49 @@ async function main() {
 
   writeFileSync(join(DIST, 'deals', 'index.html'), browsePage(products));
 
+  // ---- JSON API feed (Agency plan) --------------------------------------
+  // Static, CORS-open JSON regenerated every 20 minutes with the rest of
+  // the deploy. Headers for /api/** are set in firebase.json.
+  mkdirSync(join(DIST, 'api'), { recursive: true });
+  const generatedAt = new Date().toISOString();
+  const apiRows = products.map((p) => ({
+    id: p.id,
+    name: p.name,
+    category: p.category || null,
+    source: p.source,
+    url: p.sourceUrl || null,
+    page: `${SITE}/d/${pageSlug(p)}`,
+    price: p.currentPrice ?? null,
+    listPrice: p.previousPrice ?? null,
+    discountPct: p.marginPercentage ?? 0,
+    signal: p.recommendation || 'WATCH',
+    dealScore: p.dealScore ?? 0,
+    dropChance: p.dropChance ?? null,
+    flipMargin: p.flipMargin ?? 0,
+    trend: p.trend || 'stable',
+    reason: p.reason || '',
+    image: p.imageUrl || null,
+  }));
+  const buyNow = apiRows.filter((r) => r.signal === 'BUY NOW');
+  const write = (name, obj) =>
+    writeFileSync(join(DIST, 'api', name), JSON.stringify(obj));
+  write('deals.json', { generatedAt, count: apiRows.length, deals: apiRows });
+  write('deals.buy-now.json', { generatedAt, count: buyNow.length, deals: buyNow });
+  write('meta.json', {
+    generatedAt,
+    count: apiRows.length,
+    buyNow: buyNow.length,
+    sources: [...new Set(apiRows.map((r) => r.source))].sort(),
+    categories: [...new Set(apiRows.map((r) => r.category).filter(Boolean))].sort(),
+    endpoints: {
+      deals: `${SITE}/api/deals.json`,
+      buyNow: `${SITE}/api/deals.buy-now.json`,
+      meta: `${SITE}/api/meta.json`,
+    },
+    refreshMinutes: 20,
+    docs: `${SITE}/api`,
+  });
+
   const urls = [
     `${SITE}/`,
     `${SITE}/deals`,
@@ -243,7 +286,9 @@ async function main() {
     `User-agent: *\nAllow: /\nSitemap: ${SITE}/sitemap.xml\n`
   );
 
-  console.log(`Generated ${products.length} deal pages + browse + sitemap into dist/`);
+  console.log(
+    `Generated ${products.length} deal pages + browse + sitemap + JSON API (${buyNow.length} buy-now) into dist/`
+  );
 }
 
 main().catch((e) => {
