@@ -25,11 +25,24 @@ const Spinner = () => (
 )
 
 function App() {
-  const { user, loading, initAuth } = useAuthStore()
+  const { user, loading, initAuth, refreshProfile } = useAuthStore()
 
   useEffect(() => {
     initAuth()
   }, [])
+
+  // Pick up plan / verification changes when the tab regains focus.
+  useEffect(() => {
+    const onFocus = () => {
+      if (document.visibilityState === 'visible') refreshProfile()
+    }
+    document.addEventListener('visibilitychange', onFocus)
+    window.addEventListener('focus', onFocus)
+    return () => {
+      document.removeEventListener('visibilitychange', onFocus)
+      window.removeEventListener('focus', onFocus)
+    }
+  }, [refreshProfile])
 
   if (loading) {
     return <div className="flex items-center justify-center min-h-screen text-ink-400">Loading…</div>

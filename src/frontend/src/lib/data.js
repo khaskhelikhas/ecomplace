@@ -262,6 +262,18 @@ export async function listPaymentRequests() {
   return snap.docs.map((d) => ({ id: d.id, ...d.data() }))
 }
 
+/** Admin: count of unresolved upgrade requests (for the nav badge). */
+export async function countPendingRequests() {
+  try {
+    const snap = await getDocs(
+      query(collection(db, 'paymentRequests'), where('status', '==', 'pending'))
+    )
+    return snap.size
+  } catch {
+    return 0
+  }
+}
+
 export async function resolvePaymentRequest(id, status) {
   return updateDoc(doc(db, 'paymentRequests', id), {
     status, // 'approved' | 'rejected'

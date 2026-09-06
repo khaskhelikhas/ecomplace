@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, NavLink, useLocation } from 'react-router-dom'
 import { useAuthStore } from '../store/authStore'
-import { countUnseenAlerts } from '../lib/data'
+import { countUnseenAlerts, countPendingRequests } from '../lib/data'
 import { isAdmin } from '../lib/plans'
 
 export default function Navbar() {
@@ -10,11 +10,14 @@ export default function Navbar() {
   const { user, logout } = useAuthStore()
   const [open, setOpen] = useState(false)
   const [alertCount, setAlertCount] = useState(0)
+  const [pendingReqs, setPendingReqs] = useState(0)
+  const admin = isAdmin(user)
 
   useEffect(() => {
     if (!user?.id) return
     countUnseenAlerts(user.id).then(setAlertCount).catch(() => {})
-  }, [user?.id, location.pathname])
+    if (admin) countPendingRequests().then(setPendingReqs).catch(() => {})
+  }, [user?.id, location.pathname, admin])
 
   const handleLogout = async () => {
     await logout()
@@ -110,13 +113,18 @@ export default function Navbar() {
                   >
                     Settings
                   </NavLink>
-                  {isAdmin(user) && (
+                  {admin && (
                     <NavLink
                       to="/admin"
-                      className="block px-4 py-2.5 text-sm hover:bg-slate-50 text-brand-600 font-medium"
+                      className="flex items-center justify-between px-4 py-2.5 text-sm hover:bg-slate-50 text-brand-600 font-medium"
                       onClick={() => setOpen(false)}
                     >
                       Admin
+                      {pendingReqs > 0 && (
+                        <span className="inline-grid place-items-center min-w-[18px] h-[18px] px-1 rounded-full bg-rose-500 text-white text-[11px] font-bold">
+                          {pendingReqs}
+                        </span>
+                      )}
                     </NavLink>
                   )}
                   <button

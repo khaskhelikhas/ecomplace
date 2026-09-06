@@ -73,6 +73,33 @@ const useAuthStore = create((set, get) => ({
     }
   },
 
+  // Re-read the Firestore profile (e.g. after an admin approves an upgrade).
+  refreshProfile: async () => {
+    const fbUser = auth.currentUser
+    const u = get().user
+    if (!fbUser || !u) return
+    try {
+      await fbUser.reload()
+      const snap = await getDoc(doc(db, 'users', fbUser.uid))
+      const profile = snap.exists() ? snap.data() : {}
+      set({
+        user: {
+          ...u,
+          emailVerified: fbUser.emailVerified,
+          subscriptionPlan: profile.subscriptionPlan || 'free',
+          fullName: profile.fullName || u.fullName,
+          affiliateAmazonTag: profile.affiliateAmazonTag || '',
+          affiliateEbayCampaign: profile.affiliateEbayCampaign || '',
+          affiliateGenericQs: profile.affiliateGenericQs || '',
+          defaultFeePct: profile.defaultFeePct ?? 15,
+          defaultShipping: profile.defaultShipping ?? 0,
+        },
+      })
+    } catch {
+      /* ignore */
+    }
+  },
+
   // Permanently delete the account and its data.
   deleteAccount: async (password) => {
     const fbUser = auth.currentUser
