@@ -73,8 +73,12 @@ if (revoke) delete claims.admin;
 else claims.admin = true;
 
 await auth.setCustomUserClaims(user.uid, claims);
-// force existing sessions to refresh their token
-await auth.revokeRefreshTokens(user.uid);
 
-console.log(`${revoke ? 'Revoked' : 'Granted'} admin for ${email} (${user.uid}).`);
-console.log('They must sign out and back in for it to take effect.');
+if (revoke) {
+  // Kill existing sessions immediately when removing admin.
+  await auth.revokeRefreshTokens(user.uid);
+  console.log(`Revoked admin for ${email} (${user.uid}). Their sessions are now invalid.`);
+} else {
+  console.log(`Granted admin for ${email} (${user.uid}).`);
+  console.log('They just need to RELOAD the page — the app refreshes the token automatically.');
+}

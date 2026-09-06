@@ -49,12 +49,18 @@ const useAuthStore = create((set, get) => ({
         console.error('Could not load profile:', e)
       }
 
+      // Force-refresh the ID token so a just-granted admin claim is picked
+      // up on a plain page reload — no sign-out needed.
       let isAdmin = false
       try {
-        const tok = await fbUser.getIdTokenResult()
+        const tok = await fbUser.getIdTokenResult(true)
         isAdmin = tok.claims.admin === true
       } catch {
-        /* ignore */
+        try {
+          isAdmin = (await fbUser.getIdTokenResult()).claims.admin === true
+        } catch {
+          /* ignore */
+        }
       }
 
       set({

@@ -70,7 +70,9 @@ function App() {
               <Route path="/analyzer" element={<Analyzer />} />
               <Route path="/settings" element={<Settings />} />
               <Route path="/upgrade" element={<Upgrade />} />
-              {user.isAdmin && <Route path="/admin" element={<Admin />} />}
+              {/* Route is always registered so a just-promoted admin can reach
+                  it; Admin.jsx re-checks the claim and redirects non-admins. */}
+              <Route path="/admin" element={<Admin />} />
               <Route path="*" element={<Navigate to="/" />} />
             </>
           ) : (

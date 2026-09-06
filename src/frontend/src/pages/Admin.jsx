@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import { Navigate } from 'react-router-dom'
 import { useAuthStore } from '../store/authStore'
+import { auth } from '../lib/firebase'
 import { isAdmin, PLANS, PLAN_ORDER } from '../lib/plans'
 import {
   listUsers,
@@ -21,9 +22,36 @@ const freshUnlock = () => {
 }
 
 export default function Admin() {
-  const { user, reauth } = useAuthStore()
+  const { user, reauth, refreshProfile } = useAuthStore()
   const admin = isAdmin(user)
   const [unlocked, setUnlocked] = useState(freshUnlock)
+  const [rechecking, setRechecking] = useState(!admin)
+
+  // A user whose admin claim was just granted may land here before the store
+  // updated. Force one token refresh before deciding they're not an admin.
+  useEffect(() => {
+    if (admin) {
+      setRechecking(false)
+      return
+    }
+    let done = false
+    ;(async () => {
+      try {
+        await auth.currentUser?.getIdToken(true)
+        await refreshProfile()
+      } catch {
+        /* ignore */
+      }
+      if (!done) setRechecking(false)
+    })()
+    return () => {
+      done = true
+    }
+  }, [admin, refreshProfile])
+
+  if (rechecking) {
+    return <div className="max-w-6xl mx-auto px-4 py-16 text-ink-400">Checking access…</div>
+  }
 
   // Auto re-lock on idle.
   useEffect(() => {
