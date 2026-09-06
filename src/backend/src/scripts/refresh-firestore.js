@@ -184,27 +184,45 @@ async function main() {
   const alertsSnap = await db.collection('alerts').where('isTriggered', '==', false).get();
   let triggered = 0;
   let emailed = 0;
+  const emailFor = async (uid) => {
+    try {
+      const u = await db.collection('users').doc(uid).get();
+      return u.exists ? u.data().email : null;
+    } catch {
+      return null;
+    }
+  };
+
   for (const alertDoc of alertsSnap.docs) {
     const a = alertDoc.data();
-    const prod = await db.collection('products').doc(a.productId).get();
-    if (!prod.exists) continue;
-    const pd = prod.data();
-    const hit =
-      (a.targetPrice != null && pd.currentPrice <= a.targetPrice) ||
-      (a.targetMargin != null && pd.marginPercentage >= a.targetMargin);
-    if (!hit) continue;
+    let matchProduct = null;
+
+    if (a.type === 'category') {
+      // Any deal in the category at/above the target discount.
+      matchProduct = snapshotRows
+        .filter(
+          (p) =>
+            (p.category || '').toLowerCase() === (a.category || '').toLowerCase() &&
+            (p.marginPercentage || 0) >= (a.targetMargin || 0)
+        )
+        .sort((x, y) => (y.marginPercentage || 0) - (x.marginPercentage || 0))[0];
+      if (!matchProduct) continue;
+    } else {
+      const prod = await db.collection('products').doc(a.productId).get();
+      if (!prod.exists) continue;
+      const pd = prod.data();
+      const hit =
+        (a.targetPrice != null && pd.currentPrice <= a.targetPrice) ||
+        (a.targetMargin != null && pd.marginPercentage >= a.targetMargin);
+      if (!hit) continue;
+      matchProduct = pd;
+    }
 
     await alertDoc.ref.update({ isTriggered: true, triggeredAt: now });
     triggered++;
 
-    let email = null;
-    try {
-      const u = await db.collection('users').doc(a.userId).get();
-      email = u.exists ? u.data().email : null;
-    } catch {
-      /* ignore */
-    }
-    if (email && (await notifyTriggeredAlert({ email, product: pd, alert: a }))) {
+    const email = await emailFor(a.userId);
+    if (email && (await notifyTriggeredAlert({ email, product: matchProduct, alert: a }))) {
       await alertDoc.ref.update({ notificationSent: true });
       emailed++;
     }

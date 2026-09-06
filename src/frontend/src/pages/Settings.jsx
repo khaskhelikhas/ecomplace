@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../store/authStore'
-import { can } from '../lib/plans'
+import { can, minPlanFor } from '../lib/plans'
 
 export default function Settings() {
   const navigate = useNavigate()
@@ -93,7 +93,7 @@ export default function Settings() {
             <h2 className="font-bold">Your affiliate ids</h2>
             {!can(user, 'affiliateTags') && (
               <Link to="/upgrade" className="chip bg-brand-100 text-brand-700">
-                Pro feature →
+                {minPlanFor('affiliateTags')} feature →
               </Link>
             )}
           </div>
@@ -102,7 +102,7 @@ export default function Settings() {
             YOU.{' '}
             {can(user, 'affiliateTags')
               ? 'Leave blank to use plain links.'
-              : 'Upgrade to Pro to enable this.'}
+              : `Upgrade to ${minPlanFor('affiliateTags')} to enable this.`}
           </p>
           <div>
             <label className="label">Amazon Associates tag</label>

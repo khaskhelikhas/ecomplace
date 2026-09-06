@@ -130,3 +130,9 @@ export const limitOf = (user, key) => planOf(user).limits[key] ?? 0
 
 export const atLimit = (user, key, currentCount) =>
   currentCount >= limitOf(user, key)
+
+/** Name of the cheapest plan that includes a feature — for accurate upsell labels. */
+export const minPlanFor = (feature) => {
+  for (const k of PLAN_ORDER) if (PLANS[k].features[feature]) return PLANS[k].name
+  return 'Pro'
+}

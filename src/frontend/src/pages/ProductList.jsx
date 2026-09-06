@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import { getProducts, buildProductsCsv } from '../lib/data'
 import { useAuthStore } from '../store/authStore'
-import { can } from '../lib/plans'
+import { can, minPlanFor } from '../lib/plans'
 import SignalBadge from '../components/SignalBadge'
 
 const REC_ORDER = { 'BUY NOW': 0, WATCH: 1, SKIP: 2 }
@@ -73,7 +73,7 @@ export default function ProductList() {
           </button>
         ) : (
           <Link to="/upgrade" className="btn-ghost text-sm opacity-70">
-            ⬇ Export CSV · Pro
+            ⬇ Export CSV · {minPlanFor('csvExport')}
           </Link>
         )}
       </div>

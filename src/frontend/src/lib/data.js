@@ -113,9 +113,11 @@ export async function getAlerts(userId) {
   )
   const alerts = snap.docs.map((d) => ({ id: d.id, ...d.data() }))
 
-  // Attach current product info
   return Promise.all(
     alerts.map(async (a) => {
+      if (a.type === 'category') {
+        return { ...a, name: `Any "${a.category}" deal` }
+      }
       try {
         const p = await getDoc(doc(db, 'products', a.productId))
         if (p.exists()) {
@@ -180,10 +182,23 @@ export async function markAlertsSeen(userId) {
 export async function createAlert({ userId, productId, alertType, targetPrice, targetMargin }) {
   return addDoc(collection(db, 'alerts'), {
     userId,
+    type: 'product',
     productId,
     alertType: alertType || 'price',
     targetPrice: targetPrice ?? null,
     targetMargin: targetMargin ?? null,
+    isTriggered: false,
+    createdAt: serverTimestamp(),
+  })
+}
+
+/** Starter+: alert when ANY deal in a category hits a discount threshold. */
+export async function createCategoryAlert({ userId, category, targetMargin }) {
+  return addDoc(collection(db, 'alerts'), {
+    userId,
+    type: 'category',
+    category,
+    targetMargin: Number(targetMargin) || 0,
     isTriggered: false,
     createdAt: serverTimestamp(),
   })
