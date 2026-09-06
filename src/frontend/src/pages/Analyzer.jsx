@@ -47,9 +47,17 @@ export default function Analyzer() {
           Paste any Amazon product link and instantly get its price history,
           a full FBA profit breakdown, and a buy / pass call.
         </p>
-        <Link to="/upgrade" className="btn-primary mt-6">
-          Unlock with Pro →
-        </Link>
+        <ul className="text-sm text-ink-600 mt-5 space-y-1.5 text-left inline-block">
+          <li>✓ Keepa &amp; camelcamelcamel price-history charts</li>
+          <li>✓ FBA profit, ROI and break-even calculator</li>
+          <li>✓ <b>Bulk mode</b> — score a whole list of ASINs at once, export CSV</li>
+          <li>✓ Cross-checked against our live deal feed</li>
+        </ul>
+        <div className="mt-6">
+          <Link to="/upgrade" className="btn-primary">
+            Unlock with Pro →
+          </Link>
+        </div>
       </div>
     )
   }
@@ -138,6 +146,182 @@ export default function Analyzer() {
           <Calc known={known} user={user} />
         </div>
       )}
+
+      <BulkPanel snapshot={snapshot} />
+    </div>
+  )
+}
+
+function BulkPanel({ snapshot }) {
+  const [text, setText] = useState('')
+  const [rows, setRows] = useState(null)
+  const [busy, setBusy] = useState(false)
+
+  const run = () => {
+    setBusy(true)
+    const seen = new Set()
+    const tokens = text.split(/[\s,;]+/).map((s) => s.trim()).filter(Boolean).slice(0, 200)
+    const out = []
+    for (const tok of tokens) {
+      const a = extractAsin(tok)
+      if (!a || seen.has(a)) continue
+      seen.add(a)
+      const hit = snapshot.find((p) => (p.asin || '').toUpperCase() === a)
+      let call = '—'
+      let profit = null
+      let roi = null
+      if (hit && hit.previousPrice > hit.currentPrice) {
+        const buyP = hit.currentPrice
+        const sellP = hit.previousPrice
+        const fee = sellP * (categoryFeePct(hit.category || '') / 100)
+        const p = sellP - buyP - fee - 4
+        profit = p
+        roi = buyP ? (p / buyP) * 100 : 0
+        call = roi >= 40 && p >= 5 ? 'BUY' : roi >= 20 && p > 0 ? 'MAYBE' : 'PASS'
+      }
+      out.push({
+        asin: a,
+        inDeals: !!hit,
+        name: hit?.name || '',
+        price: hit?.currentPrice ?? '',
+        listPrice: hit?.previousPrice ?? '',
+        marginPct: hit?.marginPercentage ?? '',
+        rec: hit?.recommendation || '',
+        profit,
+        roi,
+        call,
+      })
+    }
+    setRows(out)
+    setBusy(false)
+    track('bulk_analyze', { count: out.length })
+  }
+
+  const downloadCsv = () => {
+    const head = [
+      'ASIN', 'In our deals', 'Name', 'Price', 'List price', 'Margin %', 'Signal',
+      'Est. profit/unit', 'Est. ROI %', 'Call', 'Amazon', 'Keepa',
+    ]
+    const body = rows.map((r) =>
+      [
+        r.asin, r.inDeals ? 'yes' : 'no', r.name, r.price, r.listPrice, r.marginPct, r.rec,
+        r.profit != null ? r.profit.toFixed(2) : '',
+        r.roi != null ? r.roi.toFixed(0) : '',
+        r.call,
+        `https://www.amazon.com/dp/${r.asin}`,
+        `https://keepa.com/#!product/1-${r.asin}`,
+      ]
+        .map((c) => `"${String(c ?? '').replace(/"/g, '""')}"`)
+        .join(',')
+    )
+    const csv = [head.join(','), ...body].join('\n')
+    const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }))
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `bulk-analysis-${new Date().toISOString().slice(0, 10)}.csv`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
+  return (
+    <div className="card p-5 mt-8">
+      <p className="font-bold flex items-center gap-2">
+        Bulk analysis
+        <span className="chip bg-brand-100 text-brand-700">Pro</span>
+      </p>
+      <p className="text-sm text-ink-500 mt-1 mb-3">
+        One ASIN or Amazon URL per line (up to 200). Each is matched against our
+        live deals with an FBA profit estimate and a buy / pass call.
+      </p>
+      <textarea
+        className="field font-mono text-xs h-36"
+        placeholder={'B0XXXXXXXX\nhttps://www.amazon.com/dp/B0YYYYYYYY\n…'}
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+      />
+      <div className="flex gap-2 mt-3">
+        <button onClick={run} disabled={busy || !text.trim()} className="btn-primary">
+          {busy ? 'Analyzing…' : 'Analyze all'}
+        </button>
+        {rows?.length > 0 && (
+          <button onClick={downloadCsv} className="btn-ghost">
+            ⬇ Download CSV
+          </button>
+        )}
+      </div>
+
+      {rows &&
+        (rows.length === 0 ? (
+          <p className="text-sm text-rose-600 mt-4">No valid ASINs found in that list.</p>
+        ) : (
+          <div className="overflow-x-auto mt-4">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-left text-ink-400 text-xs border-b">
+                  <th className="py-2 pr-3">ASIN</th>
+                  <th className="py-2 pr-3">In deals</th>
+                  <th className="py-2 pr-3">Price</th>
+                  <th className="py-2 pr-3">Margin</th>
+                  <th className="py-2 pr-3">Est. ROI</th>
+                  <th className="py-2 pr-3">Call</th>
+                  <th className="py-2 pr-3">Links</th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((r) => (
+                  <tr key={r.asin} className="border-b last:border-0">
+                    <td className="py-2 pr-3 font-mono text-xs">{r.asin}</td>
+                    <td className="py-2 pr-3">
+                      {r.inDeals ? <span className="text-emerald-600">✓</span> : '—'}
+                    </td>
+                    <td className="py-2 pr-3">{r.price !== '' ? `$${r.price}` : '—'}</td>
+                    <td className="py-2 pr-3">{r.marginPct !== '' ? `${r.marginPct}%` : '—'}</td>
+                    <td className="py-2 pr-3">{r.roi != null ? `${r.roi.toFixed(0)}%` : '—'}</td>
+                    <td className="py-2 pr-3">
+                      <span
+                        className={
+                          r.call === 'BUY'
+                            ? 'text-emerald-700 font-semibold'
+                            : r.call === 'MAYBE'
+                              ? 'text-amber-700 font-semibold'
+                              : r.call === 'PASS'
+                                ? 'text-rose-700'
+                                : 'text-ink-400'
+                        }
+                      >
+                        {r.call}
+                      </span>
+                    </td>
+                    <td className="py-2 pr-3 whitespace-nowrap">
+                      <a
+                        className="text-brand-600"
+                        href={`https://www.amazon.com/dp/${r.asin}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        A
+                      </a>
+                      {' · '}
+                      <a
+                        className="text-brand-600"
+                        href={`https://keepa.com/#!product/1-${r.asin}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        K
+                      </a>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <p className="text-xs text-ink-400 mt-2">
+              {rows.filter((r) => r.inDeals).length} of {rows.length} are in our current
+              deal set. ROI is a rough FBA estimate (list price as resale, $4 FBA fee) —
+              open Keepa for the full picture.
+            </p>
+          </div>
+        ))}
     </div>
   )
 }

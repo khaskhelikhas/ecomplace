@@ -73,6 +73,18 @@ export default function Dashboard() {
         </div>
       )}
 
+      {user?.subscriptionPlan === 'starter' && (
+        <div className="card p-4 mb-6 flex flex-wrap items-center justify-between gap-3">
+          <p className="text-sm text-ink-600">
+            <b>Starter plan.</b> Pro ($49/mo) adds the ASIN analyzer, bulk CSV
+            analysis and unlimited alerts.
+          </p>
+          <Link to="/upgrade" className="btn-primary text-sm shrink-0">
+            Compare plans →
+          </Link>
+        </div>
+      )}
+
       {/* stat tiles */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         <Stat label="Live deals" value={stats.totalProducts} />
