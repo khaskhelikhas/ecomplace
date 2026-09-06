@@ -13,10 +13,38 @@
  */
 import { initializeApp, cert, applicationDefault, getApps } from 'firebase-admin/app';
 import { getAuth } from 'firebase-admin/auth';
+import { readFileSync, existsSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+
+function pickCredential() {
+  const raw = process.env.FIREBASE_SERVICE_ACCOUNT;
+  if (raw) return cert(JSON.parse(raw));
+
+  if (process.env.GOOGLE_APPLICATION_CREDENTIALS) return applicationDefault();
+
+  // Fall back to a serviceAccount.json sitting in the project.
+  const candidates = [
+    join(__dirname, '..', '..', '..', '..', 'serviceAccount.json'), // repo root
+    join(__dirname, '..', '..', '..', 'serviceAccount.json'),
+    join(__dirname, '..', '..', 'serviceAccount.json'),
+    join(process.cwd(), 'serviceAccount.json'),
+  ];
+  for (const p of candidates) {
+    if (existsSync(p)) {
+      console.log(`Using ${p}`);
+      return cert(JSON.parse(readFileSync(p, 'utf8')));
+    }
+  }
+  throw new Error(
+    'No credentials. Set GOOGLE_APPLICATION_CREDENTIALS, or put serviceAccount.json in the project root.'
+  );
+}
 
 if (!getApps().length) {
-  const raw = process.env.FIREBASE_SERVICE_ACCOUNT;
-  initializeApp(raw ? { credential: cert(JSON.parse(raw)) } : { credential: applicationDefault() });
+  initializeApp({ credential: pickCredential() });
 }
 
 const email = process.argv[2];
